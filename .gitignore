@@ -1,3 +1,4 @@
+.DS_Store
 !cabal.project.ci.local
 !data/legacy/19.08.zip
 !data/legacy/20.07.zip

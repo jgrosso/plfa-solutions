@@ -508,7 +508,8 @@ two natural numbers, now adapted to the intrinsically-typed
 de Bruijn representation.
 
 ```agda
--- Your code goes here
+mul : ∀ {Γ} → Γ ⊢ `ℕ ⇒ `ℕ ⇒ `ℕ
+mul = μ ƛ ƛ (case (# 1) `zero (plus · # 1 · (# 3 · # 0 · # 1)))
 ```
 
 
@@ -993,7 +994,15 @@ not reduce, and its corollary, terms that reduce are not
 values.
 
 ```agda
--- Your code goes here
+V¬—→ : ∀ {Γ : Context} {A : Type} {M N : Γ ⊢ A}
+  → Value M
+  → ¬ (M —→ N)
+V¬—→ (V-suc ValueM) (ξ-suc M—→N) = V¬—→ ValueM M—→N
+
+¬—→V : ∀ {Γ : Context} {A : Type} {M N : Γ ⊢ A}
+  → M —→ N
+  → ¬ Value M
+¬—→V M—→N ValueM = V¬—→ ValueM M—→N
 ```
 
 ## Progress
@@ -1347,7 +1356,725 @@ tedious and almost identical to the previous proof.
 Using the evaluator, confirm that two times two is four.
 
 ```agda
--- Your code goes here
+_ : eval (gas 100) (mul · two · two) ≡ steps
+  ((μ
+    (ƛ
+    (ƛ
+      case (` (S Z)) `zero
+      ((μ
+        (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` (S Z)
+      · (` (S (S (S Z))) · ` Z · ` (S Z))))))
+  · `suc (`suc `zero)
+  · `suc (`suc `zero)
+  —→⟨ ξ-·₁ (ξ-·₁ β-μ) ⟩
+  (ƛ
+    (ƛ
+    case (` (S Z)) `zero
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` (S Z)
+      ·
+      ((μ
+        (ƛ
+        (ƛ
+          case (` (S Z)) `zero
+          ((μ
+            (ƛ
+            (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+          · ` (S Z)
+          · (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z)))))
+  · `suc (`suc `zero)
+  · `suc (`suc `zero)
+  —→⟨ ξ-·₁ (β-ƛ (V-suc (V-suc V-zero))) ⟩
+  (ƛ
+    case (`suc (`suc `zero)) `zero
+    ((μ
+      (ƛ
+      (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+    · ` (S Z)
+    ·
+    ((μ
+      (ƛ
+        (ƛ
+        case (` (S Z)) `zero
+        ((μ
+          (ƛ
+            (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+          · ` (S Z)
+          · (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+  · `suc (`suc `zero)
+  —→⟨ β-ƛ (V-suc (V-suc V-zero)) ⟩
+  case (`suc (`suc `zero)) `zero
+  ((μ
+    (ƛ
+      (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+    · `suc (`suc `zero)
+    ·
+    ((μ
+      (ƛ
+      (ƛ
+        case (` (S Z)) `zero
+        ((μ
+          (ƛ
+          (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+        · ` (S Z)
+        · (` (S (S (S Z))) · ` Z · ` (S Z))))))
+    · ` Z
+    · `suc (`suc `zero)))
+  —→⟨ β-suc (V-suc V-zero) ⟩
+  (μ
+    (ƛ
+    (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+  · `suc (`suc `zero)
+  ·
+  ((μ
+    (ƛ
+      (ƛ
+      case (` (S Z)) `zero
+      ((μ
+        (ƛ
+          (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+        · ` (S Z)
+        · (` (S (S (S Z))) · ` Z · ` (S Z))))))
+    · `suc `zero
+    · `suc (`suc `zero))
+  —→⟨ ξ-·₁ (ξ-·₁ β-μ) ⟩
+  (ƛ
+    (ƛ
+    case (` (S Z)) (` Z)
+    (`suc
+      ((μ
+        (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z)))))
+  · `suc (`suc `zero)
+  ·
+  ((μ
+    (ƛ
+      (ƛ
+      case (` (S Z)) `zero
+      ((μ
+        (ƛ
+          (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+        · ` (S Z)
+        · (` (S (S (S Z))) · ` Z · ` (S Z))))))
+    · `suc `zero
+    · `suc (`suc `zero))
+  —→⟨ ξ-·₁ (β-ƛ (V-suc (V-suc V-zero))) ⟩
+  (ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+  ·
+  ((μ
+    (ƛ
+      (ƛ
+      case (` (S Z)) `zero
+      ((μ
+        (ƛ
+          (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+        · ` (S Z)
+        · (` (S (S (S Z))) · ` Z · ` (S Z))))))
+    · `suc `zero
+    · `suc (`suc `zero))
+  —→⟨ ξ-·₂ V-ƛ (ξ-·₁ (ξ-·₁ β-μ)) ⟩
+  (ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+  ·
+  ((ƛ
+    (ƛ
+      case (` (S Z)) `zero
+      ((μ
+        (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` (S Z)
+      ·
+      ((μ
+        (ƛ
+          (ƛ
+          case (` (S Z)) `zero
+          ((μ
+            (ƛ
+              (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+            · ` (S Z)
+            · (` (S (S (S Z))) · ` Z · ` (S Z))))))
+        · ` Z
+        · ` (S Z)))))
+    · `suc `zero
+    · `suc (`suc `zero))
+  —→⟨ ξ-·₂ V-ƛ (ξ-·₁ (β-ƛ (V-suc V-zero))) ⟩
+  (ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+  ·
+  ((ƛ
+    case (`suc `zero) `zero
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` (S Z)
+      ·
+      ((μ
+        (ƛ
+        (ƛ
+          case (` (S Z)) `zero
+          ((μ
+            (ƛ
+            (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+          · ` (S Z)
+          · (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+    · `suc (`suc `zero))
+  —→⟨ ξ-·₂ V-ƛ (β-ƛ (V-suc (V-suc V-zero))) ⟩
+  (ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+  ·
+  case (`suc `zero) `zero
+  ((μ
+    (ƛ
+      (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+    · `suc (`suc `zero)
+    ·
+    ((μ
+      (ƛ
+      (ƛ
+        case (` (S Z)) `zero
+        ((μ
+          (ƛ
+          (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+        · ` (S Z)
+        · (` (S (S (S Z))) · ` Z · ` (S Z))))))
+    · ` Z
+    · `suc (`suc `zero)))
+  —→⟨ ξ-·₂ V-ƛ (β-suc V-zero) ⟩
+  (ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+  ·
+  ((μ
+    (ƛ
+      (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+    · `suc (`suc `zero)
+    ·
+    ((μ
+      (ƛ
+      (ƛ
+        case (` (S Z)) `zero
+        ((μ
+          (ƛ
+          (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+        · ` (S Z)
+        · (` (S (S (S Z))) · ` Z · ` (S Z))))))
+    · `zero
+    · `suc (`suc `zero)))
+  —→⟨ ξ-·₂ V-ƛ (ξ-·₁ (ξ-·₁ β-μ)) ⟩
+  (ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+  ·
+  ((ƛ
+    (ƛ
+      case (` (S Z)) (` Z)
+      (`suc
+      ((μ
+        (ƛ
+          (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+        · ` Z
+        · ` (S Z)))))
+    · `suc (`suc `zero)
+    ·
+    ((μ
+      (ƛ
+      (ƛ
+        case (` (S Z)) `zero
+        ((μ
+          (ƛ
+          (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+        · ` (S Z)
+        · (` (S (S (S Z))) · ` Z · ` (S Z))))))
+    · `zero
+    · `suc (`suc `zero)))
+  —→⟨ ξ-·₂ V-ƛ (ξ-·₁ (β-ƛ (V-suc (V-suc V-zero)))) ⟩
+  (ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+  ·
+  ((ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+      ((μ
+        (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+    ·
+    ((μ
+      (ƛ
+      (ƛ
+        case (` (S Z)) `zero
+        ((μ
+          (ƛ
+          (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+        · ` (S Z)
+        · (` (S (S (S Z))) · ` Z · ` (S Z))))))
+    · `zero
+    · `suc (`suc `zero)))
+  —→⟨ ξ-·₂ V-ƛ (ξ-·₂ V-ƛ (ξ-·₁ (ξ-·₁ β-μ))) ⟩
+  (ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+  ·
+  ((ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+      ((μ
+        (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+    ·
+    ((ƛ
+      (ƛ
+      case (` (S Z)) `zero
+      ((μ
+        (ƛ
+          (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+        · ` (S Z)
+        ·
+        ((μ
+          (ƛ
+          (ƛ
+            case (` (S Z)) `zero
+            ((μ
+              (ƛ
+              (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+            · ` (S Z)
+            · (` (S (S (S Z))) · ` Z · ` (S Z))))))
+        · ` Z
+        · ` (S Z)))))
+    · `zero
+    · `suc (`suc `zero)))
+  —→⟨ ξ-·₂ V-ƛ (ξ-·₂ V-ƛ (ξ-·₁ (β-ƛ V-zero))) ⟩
+  (ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+  ·
+  ((ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+      ((μ
+        (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+    ·
+    ((ƛ
+      case `zero `zero
+      ((μ
+        (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` (S Z)
+      ·
+      ((μ
+        (ƛ
+          (ƛ
+          case (` (S Z)) `zero
+          ((μ
+            (ƛ
+              (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+            · ` (S Z)
+            · (` (S (S (S Z))) · ` Z · ` (S Z))))))
+        · ` Z
+        · ` (S Z))))
+    · `suc (`suc `zero)))
+  —→⟨ ξ-·₂ V-ƛ (ξ-·₂ V-ƛ (β-ƛ (V-suc (V-suc V-zero)))) ⟩
+  (ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+  ·
+  ((ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+      ((μ
+        (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+    ·
+    case `zero `zero
+    ((μ
+      (ƛ
+      (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+    · `suc (`suc `zero)
+    ·
+    ((μ
+      (ƛ
+        (ƛ
+        case (` (S Z)) `zero
+        ((μ
+          (ƛ
+            (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+          · ` (S Z)
+          · (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · `suc (`suc `zero))))
+  —→⟨ ξ-·₂ V-ƛ (ξ-·₂ V-ƛ β-zero) ⟩
+  (ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+  ·
+  ((ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+      ((μ
+        (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+    · `zero)
+  —→⟨ ξ-·₂ V-ƛ (β-ƛ V-zero) ⟩
+  (ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+  ·
+  case (`suc (`suc `zero)) `zero
+  (`suc
+    ((μ
+      (ƛ
+      (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+    · ` Z
+    · `zero))
+  —→⟨ ξ-·₂ V-ƛ (β-suc (V-suc V-zero)) ⟩
+  (ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+  ·
+  `suc
+  ((μ
+    (ƛ
+      (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+    · `suc `zero
+    · `zero)
+  —→⟨ ξ-·₂ V-ƛ (ξ-suc (ξ-·₁ (ξ-·₁ β-μ))) ⟩
+  (ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+  ·
+  `suc
+  ((ƛ
+    (ƛ
+      case (` (S Z)) (` Z)
+      (`suc
+      ((μ
+        (ƛ
+          (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+        · ` Z
+        · ` (S Z)))))
+    · `suc `zero
+    · `zero)
+  —→⟨ ξ-·₂ V-ƛ (ξ-suc (ξ-·₁ (β-ƛ (V-suc V-zero)))) ⟩
+  (ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+  ·
+  `suc
+  ((ƛ
+    case (`suc `zero) (` Z)
+    (`suc
+      ((μ
+        (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+    · `zero)
+  —→⟨ ξ-·₂ V-ƛ (ξ-suc (β-ƛ V-zero)) ⟩
+  (ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+  ·
+  `suc
+  case (`suc `zero) `zero
+  (`suc
+    ((μ
+      (ƛ
+      (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+    · ` Z
+    · `zero))
+  —→⟨ ξ-·₂ V-ƛ (ξ-suc (β-suc V-zero)) ⟩
+  (ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+  ·
+  `suc
+  (`suc
+    ((μ
+      (ƛ
+      (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+    · `zero
+    · `zero))
+  —→⟨ ξ-·₂ V-ƛ (ξ-suc (ξ-suc (ξ-·₁ (ξ-·₁ β-μ)))) ⟩
+  (ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+  ·
+  `suc
+  (`suc
+    ((ƛ
+      (ƛ
+      case (` (S Z)) (` Z)
+      (`suc
+        ((μ
+          (ƛ
+          (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+        · ` Z
+        · ` (S Z)))))
+    · `zero
+    · `zero))
+  —→⟨ ξ-·₂ V-ƛ (ξ-suc (ξ-suc (ξ-·₁ (β-ƛ V-zero)))) ⟩
+  (ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+  ·
+  `suc
+  (`suc
+    ((ƛ
+      case `zero (` Z)
+      (`suc
+      ((μ
+        (ƛ
+          (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+        · ` Z
+        · ` (S Z))))
+    · `zero))
+  —→⟨ ξ-·₂ V-ƛ (ξ-suc (ξ-suc (β-ƛ V-zero))) ⟩
+  (ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+  ·
+  `suc
+  (`suc
+    case `zero `zero
+    (`suc
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · `zero)))
+  —→⟨ ξ-·₂ V-ƛ (ξ-suc (ξ-suc β-zero)) ⟩
+  (ƛ
+    case (`suc (`suc `zero)) (` Z)
+    (`suc
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+  · `suc (`suc `zero)
+  —→⟨ β-ƛ (V-suc (V-suc V-zero)) ⟩
+  case (`suc (`suc `zero)) (`suc (`suc `zero))
+  (`suc
+    ((μ
+      (ƛ
+      (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+    · ` Z
+    · `suc (`suc `zero)))
+  —→⟨ β-suc (V-suc V-zero) ⟩
+  `suc
+  ((μ
+    (ƛ
+      (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+    · `suc `zero
+    · `suc (`suc `zero))
+  —→⟨ ξ-suc (ξ-·₁ (ξ-·₁ β-μ)) ⟩
+  `suc
+  ((ƛ
+    (ƛ
+      case (` (S Z)) (` Z)
+      (`suc
+      ((μ
+        (ƛ
+          (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+        · ` Z
+        · ` (S Z)))))
+    · `suc `zero
+    · `suc (`suc `zero))
+  —→⟨ ξ-suc (ξ-·₁ (β-ƛ (V-suc V-zero))) ⟩
+  `suc
+  ((ƛ
+    case (`suc `zero) (` Z)
+    (`suc
+      ((μ
+        (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · ` (S Z))))
+    · `suc (`suc `zero))
+  —→⟨ ξ-suc (β-ƛ (V-suc (V-suc V-zero))) ⟩
+  `suc
+  case (`suc `zero) (`suc (`suc `zero))
+  (`suc
+    ((μ
+      (ƛ
+      (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+    · ` Z
+    · `suc (`suc `zero)))
+  —→⟨ ξ-suc (β-suc V-zero) ⟩
+  `suc
+  (`suc
+    ((μ
+      (ƛ
+      (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+    · `zero
+    · `suc (`suc `zero)))
+  —→⟨ ξ-suc (ξ-suc (ξ-·₁ (ξ-·₁ β-μ))) ⟩
+  `suc
+  (`suc
+    ((ƛ
+      (ƛ
+      case (` (S Z)) (` Z)
+      (`suc
+        ((μ
+          (ƛ
+          (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+        · ` Z
+        · ` (S Z)))))
+    · `zero
+    · `suc (`suc `zero)))
+  —→⟨ ξ-suc (ξ-suc (ξ-·₁ (β-ƛ V-zero))) ⟩
+  `suc
+  (`suc
+    ((ƛ
+      case `zero (` Z)
+      (`suc
+      ((μ
+        (ƛ
+          (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+        · ` Z
+        · ` (S Z))))
+    · `suc (`suc `zero)))
+  —→⟨ ξ-suc (ξ-suc (β-ƛ (V-suc (V-suc V-zero)))) ⟩
+  `suc
+  (`suc
+    case `zero (`suc (`suc `zero))
+    (`suc
+    ((μ
+      (ƛ
+        (ƛ case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+      · ` Z
+      · `suc (`suc `zero))))
+  —→⟨ ξ-suc (ξ-suc β-zero) ⟩ `suc (`suc (`suc (`suc `zero))) ∎)
+  (done (V-suc (V-suc (V-suc (V-suc V-zero)))))
+_ = refl
 ```
 
 

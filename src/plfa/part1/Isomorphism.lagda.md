@@ -437,15 +437,14 @@ open ≲-Reasoning
 
 Show that every isomorphism implies an embedding.
 ```agda
-postulate
-  ≃-implies-≲ : ∀ {A B : Set}
-    → A ≃ B
-      -----
-    → A ≲ B
+≃-implies-≲ : ∀ {A B : Set}
+  → A ≃ B
+    -----
+  → A ≲ B
 ```
 
 ```agda
--- Your code goes here
+≃-implies-≲ A≃B = record { to = to A≃B ; from = from A≃B ; from∘to = from∘to A≃B }
 ```
 
 #### Exercise `_⇔_` (practice) {#iff}
@@ -460,7 +459,21 @@ record _⇔_ (A B : Set) : Set where
 Show that equivalence is reflexive, symmetric, and transitive.
 
 ```agda
--- Your code goes here
+⇔-refl : ∀ {A : Set}
+  → A ⇔ A
+⇔-refl = record { to = λ x → x ; from = λ x → x }
+
+⇔-sym : ∀ {A B : Set}
+  → A ⇔ B
+  → B ⇔ A
+⇔-sym A⇔B = record { to = _⇔_.from A⇔B ; from = _⇔_.to A⇔B }
+
+⇔-trans : ∀ {A B C : Set}
+  → A ⇔ B
+  → B ⇔ C
+  → A ⇔ C
+⇔-trans A⇔B B⇔C =
+  record { to = _⇔_.to B⇔C ∘ _⇔_.to A⇔B ; from = _⇔_.from A⇔B ∘ _⇔_.from B⇔C }
 ```
 
 #### Exercise `Bin-embedding` (stretch) {#Bin-embedding}
@@ -480,10 +493,15 @@ which satisfy the following property:
 
 Using the above, establish that there is an embedding of `ℕ` into `Bin`.
 ```agda
--- Your code goes here
+open import plfa.part1.Induction using (Bin; from-to) renaming (from to Bin-from-ℕ; to to ℕ-to-Bin)
+
+ℕ-≲-Bin : ℕ ≲ Bin
+ℕ-≲-Bin = record { to = ℕ-to-Bin ; from = Bin-from-ℕ ; from∘to = from-to }
 ```
 
 Why do `to` and `from` not form an isomorphism?
+
+`to` is not a left inverse of `from`.
 
 ## Standard library
 

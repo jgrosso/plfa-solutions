@@ -589,6 +589,10 @@ data Type : Set where
   _⇒_   : Type → Type → Type
   Nat   : Type
   _`×_  : Type → Type → Type
+  _`⊎_  : Type → Type → Type
+  `⊤    : Type
+  `⊥    : Type
+  `List : Type → Type
 ```
 
 ### Contexts
@@ -711,6 +715,46 @@ data _⊢_ : Context → Type → Set where
       --------------
     → Γ ⊢ C
 
+  `inj₁ : ∀ {Γ A B}
+    → Γ ⊢ A
+    → Γ ⊢ A `⊎ B
+
+  `inj₂ : ∀ {Γ A B}
+    → Γ ⊢ B
+    → Γ ⊢ A `⊎ B
+
+  case⊎ : ∀ {Γ A B C}
+    → Γ ⊢ A `⊎ B
+    → Γ , A ⊢ C
+    → Γ , B ⊢ C
+    → Γ ⊢ C
+
+  `tt : ∀ {Γ}
+    → Γ ⊢ `⊤
+
+  case⊤ : ∀ {Γ A}
+    → Γ ⊢ `⊤
+    → Γ ⊢ A
+    → Γ ⊢ A
+
+  case⊥ : ∀ {Γ A}
+    → Γ ⊢ `⊥
+    → Γ ⊢ A
+
+  `[] : ∀ {Γ A}
+    → Γ ⊢ `List A
+
+  _`∷_ : ∀ {Γ A}
+    → Γ ⊢ A
+    → Γ ⊢ `List A
+    → Γ ⊢ `List A
+
+  caseL : ∀ {Γ A B}
+    → Γ ⊢ `List A
+    → Γ ⊢ B
+    → Γ , A , `List A ⊢ B
+    → Γ ⊢ B
+
 ```
 
 ### Abbreviating de Bruijn indices
@@ -764,6 +808,15 @@ rename ρ `⟨ M , N ⟩     =  `⟨ rename ρ M , rename ρ N ⟩
 rename ρ (`proj₁ L)     =  `proj₁ (rename ρ L)
 rename ρ (`proj₂ L)     =  `proj₂ (rename ρ L)
 rename ρ (case× L M)    =  case× (rename ρ L) (rename (ext (ext ρ)) M)
+rename ρ (`inj₁ M)      =  `inj₁ (rename ρ M)
+rename ρ (`inj₂ N)      =  `inj₂ (rename ρ N)
+rename ρ (case⊎ L M N)  =  case⊎ (rename ρ L) (rename (ext ρ) M) (rename (ext ρ) N)
+rename ρ `tt            =  `tt
+rename ρ (case⊤ L M)    =  case⊤ (rename ρ L) (rename ρ M)
+rename ρ (case⊥ L)      =  case⊥ (rename ρ L)
+rename ρ `[]            =  `[]
+rename ρ (L `∷ M)       =  rename ρ L `∷ rename ρ M
+rename ρ (caseL L M N)  =  caseL (rename ρ L) (rename ρ M) (rename (ext (ext ρ)) N)
 ```
 
 ## Simultaneous Substitution
@@ -788,6 +841,15 @@ subst σ `⟨ M , N ⟩     =  `⟨ subst σ M , subst σ N ⟩
 subst σ (`proj₁ L)     =  `proj₁ (subst σ L)
 subst σ (`proj₂ L)     =  `proj₂ (subst σ L)
 subst σ (case× L M)    =  case× (subst σ L) (subst (exts (exts σ)) M)
+subst σ (`inj₁ M)      =  `inj₁ (subst σ M)
+subst σ (`inj₂ N)      =  `inj₂ (subst σ N)
+subst σ (case⊎ L M N)  =  case⊎ (subst σ L) (subst (exts σ) M) (subst (exts σ) N)
+subst σ `tt            =  `tt
+subst σ (case⊤ L M)    =  case⊤ (subst σ L) (subst σ M)
+subst σ (case⊥ L)      =  case⊥ (subst σ L)
+subst σ `[]            =  `[]
+subst σ (L `∷ M)       =  subst σ L `∷ subst σ M
+subst σ (caseL L M N)  =  caseL (subst σ L) (subst σ M) (subst (exts (exts σ)) N)
 ```
 
 ## Single and double substitution
@@ -811,7 +873,7 @@ _[_][_] : ∀ {Γ A B C}
     -------------
   → Γ ⊢ C
 _[_][_] {Γ} {A} {B} N V W =  subst {Γ , A , B} {Γ} σ N
-  where
+  module DoubleSubst where
   σ : ∀ {C} → Γ , A , B ∋ C → Γ ⊢ C
   σ Z          =  W
   σ (S Z)      =  V
@@ -853,6 +915,25 @@ data Value : ∀ {Γ A} → Γ ⊢ A → Set where
     → Value W
       ----------------
     → Value `⟨ V , W ⟩
+
+  V-inj₁ : ∀ {Γ A B} {V : Γ ⊢ A}
+    → Value V
+    → Value (`inj₁ {B = B} V)
+
+  V-inj₂ : ∀ {Γ A B} {V : Γ ⊢ B}
+    → Value V
+    → Value (`inj₂ {A = A} V)
+
+  V-tt : ∀ {Γ}
+    → Value (`tt {Γ})
+
+  V-[] : ∀ {Γ A}
+    → Value (`[] {Γ} {A})
+
+  V-∷ : ∀ {Γ A} {V : Γ ⊢ A} {W : Γ ⊢ `List A}
+    → Value V
+    → Value W
+    → Value (V `∷ W)
 ```
 
 Implicit arguments need to be supplied when they are
@@ -987,6 +1068,58 @@ data _—→_ : ∀ {Γ A} → (Γ ⊢ A) → (Γ ⊢ A) → Set where
       ----------------------------------
     → case× `⟨ V , W ⟩ M —→ M [ V ][ W ]
 
+  ξ-inj₁ : ∀ {Γ A B} {M M′ : Γ ⊢ A}
+    → M —→ M′
+    → `inj₁ {B = B} M —→ `inj₁ {B = B} M′
+
+  ξ-inj₂ : ∀ {Γ A B} {N N′ : Γ ⊢ B}
+    → N —→ N′
+    → `inj₂ {A = A} N —→ `inj₂ {A = A} N′
+
+  ξ-case⊎ : ∀ {Γ A B C} {L L′ : Γ ⊢ A `⊎ B} {M : Γ , A ⊢ C} {N : Γ , B ⊢ C}
+    → L —→ L′
+    → case⊎ L M N —→ case⊎ L′ M N
+
+  β-inj₁ : ∀ {Γ A B C} {V : Γ ⊢ A} {M : Γ , A ⊢ C} {N : Γ , B ⊢ C}
+    → Value V
+    → case⊎ (`inj₁ V) M N —→ M [ V ]
+
+  β-inj₂ : ∀ {Γ A B C} {V : Γ ⊢ B} {M : Γ , A ⊢ C} {N : Γ , B ⊢ C}
+    → Value V
+    → case⊎ (`inj₂ V) M N —→ N [ V ]
+
+  ξ-case⊤ : ∀ {Γ A} {L L′ : Γ ⊢ `⊤} {M : Γ ⊢ A}
+    → L —→ L′
+    → case⊤ L M —→ case⊤ L′ M
+
+  β-case⊤ : ∀ {Γ A} {M : Γ ⊢ A}
+    → case⊤ `tt M —→ M
+
+  ξ-case⊥ : ∀ {Γ A} {L L′ : Γ ⊢ `⊥}
+    → L —→ L′
+    → case⊥ {A = A} L —→ case⊥ {A = A} L′
+
+  ξ-∷₁ : ∀ {Γ A} {M M′ : Γ ⊢ A} {N : Γ ⊢ `List A}
+    → M —→ M′
+    → M `∷ N —→ M′ `∷ N
+
+  ξ-∷₂ : ∀ {Γ A} {V : Γ ⊢ A} {N N′ : Γ ⊢ `List A}
+    → Value V
+    → N —→ N′
+    → V `∷ N —→ V `∷ N′
+
+  ξ-caseL : ∀ {Γ A B} {L L′ : Γ ⊢ `List A} {M : Γ ⊢ B} {N : Γ , A , `List A ⊢ B}
+    → L —→ L′
+    → caseL L M N —→ caseL L′ M N
+
+  β-[] : ∀ {Γ A B} {M : Γ ⊢ B} {N : Γ , A , `List A ⊢ B}
+    → caseL `[] M N —→ M
+
+  β-∷ : ∀ {Γ A B} {V : Γ ⊢ A} {W : Γ ⊢ `List A} {M : Γ ⊢ B} {N : Γ , A , `List A ⊢ B}
+    → Value V
+    → Value W
+    → caseL (V `∷ W) M N —→ N [ V ][ W ]
+
 ```
 
 ## Reflexive and transitive closure
@@ -1030,6 +1163,11 @@ V¬—→ (V-suc VM)   (ξ-suc M—→M′)     =  V¬—→ VM M—→M′
 V¬—→ V-con        ()
 V¬—→ V-⟨ VM , _ ⟩ (ξ-⟨,⟩₁ M—→M′)    =  V¬—→ VM M—→M′
 V¬—→ V-⟨ _ , VN ⟩ (ξ-⟨,⟩₂ _ N—→N′)  =  V¬—→ VN N—→N′
+V¬—→ (V-inj₁ VM)  (ξ-inj₁ M—→M′)    =  V¬—→ VM M—→M′
+V¬—→ (V-inj₂ VN)  (ξ-inj₂ N—→N′)    =  V¬—→ VN N—→N′
+V¬—→ V-[]         ()
+V¬—→ (V-∷ VL VM)  (ξ-∷₁ L—→L′)      =  V¬—→ VL L—→L′
+V¬—→ (V-∷ VL VM)  (ξ-∷₂ _ M—→M′)    =  V¬—→ VM M—→M′
 ```
 
 
@@ -1091,6 +1229,33 @@ progress (`proj₂ L) with progress L
 progress (case× L M) with progress L
 ...    | step L—→L′                         =  step (ξ-case× L—→L′)
 ...    | done (V-⟨ VM , VN ⟩)               =  step (β-case× VM VN)
+progress (`inj₁ M) with progress M
+...    | step M—→M′                         =  step (ξ-inj₁ M—→M′)
+...    | done VM                            =  done (V-inj₁ VM)
+progress (`inj₂ N) with progress N
+...    | step N—→N′                         =  step (ξ-inj₂ N—→N′)
+...    | done VN                            =  done (V-inj₂ VN)
+progress (case⊎ L M N) with progress L
+...    | step L—→L′                         =  step (ξ-case⊎ L—→L′)
+...    | done (V-inj₁ VL)                   =  step (β-inj₁ VL)
+...    | done (V-inj₂ VL)                   =  step (β-inj₂ VL)
+progress `tt                                =  done V-tt
+progress (case⊤ L M) with progress L
+...    | step L—→L′                         =  step (ξ-case⊤ L—→L′)
+...    | done V-tt                          =  step β-case⊤
+progress (case⊥ L) with progress L
+...    | step L—→L′                         =  step (ξ-case⊥ L—→L′)
+...    | done ()
+progress `[]                                =  done V-[]
+progress (L `∷ M) with progress L
+...    | step L—→L′                         =  step (ξ-∷₁ L—→L′)
+...    | done VL with progress M
+...        | step M—→M′                     =  step (ξ-∷₂ VL M—→M′)
+...        | done VM                        =  done (V-∷ VL VM)
+progress (caseL L M N) with progress L
+...    | step L—→L′                         =  step (ξ-caseL L—→L′)
+...    | done V-[]                          =  step β-[]
+...    | done (V-∷ VL₁ VL₂)                 =  step (β-∷ VL₁ VL₂)
 ```
 
 
@@ -1207,6 +1372,24 @@ _ =
    —→⟨ β-case× V-con V-zero ⟩
      `⟨ `zero , con 42 ⟩
    ∎
+
+swap⊎ : ∀ {A B} → ∅ ⊢ A `⊎ B ⇒ B `⊎ A
+swap⊎ = ƛ case⊎ (# 0) (`inj₂ (# 0)) (`inj₁ (# 0))
+
+to×⊤ : ∀ {A} → ∅ ⊢ A ⇒ A `× `⊤
+to×⊤ = ƛ `⟨ # 0 , `tt ⟩
+
+from×⊤-case : ∀ {A} → ∅ ⊢ A `× `⊤ ⇒ A
+from×⊤-case = ƛ case× (# 0) (case⊤ (# 0) (# 1))
+
+to⊎⊥ : ∀ {A} → ∅ ⊢ A ⇒ A `⊎ `⊥
+to⊎⊥ = ƛ `inj₁ (# 0)
+
+from⊎⊥ : ∀ {A} → ∅ ⊢ A `⊎ `⊥ ⇒ A
+from⊎⊥ = ƛ case⊎ (# 0) (# 0) (case⊥ (# 0))
+
+mapL : ∀ {A B} → ∅ ⊢ (A ⇒ B) ⇒ `List A ⇒ `List B
+mapL = μ ƛ ƛ caseL (# 0) `[] ((# 3 · # 1) `∷ (# 4 · # 3 · # 0))
 ```
 
 #### Exercise `More` (recommended and practice)
@@ -1233,10 +1416,671 @@ Please delimit any code you add as follows:
 Show that a double substitution is equivalent to two single
 substitutions.
 ```agda
+open import Axiom.Extensionality.Propositional using (ExtensionalityImplicit)
+open import Function using (_∘_)
+open import plfa.part1.Isomorphism using (extensionality)
+open Eq.≡-Reasoning using (_≡⟨⟩_; step-≡) renaming (begin_ to ≡begin_; _∎ to _≡∎)
+
 postulate
-  double-subst :
-    ∀ {Γ A B C} {V : Γ ⊢ A} {W : Γ ⊢ B} {N : Γ , A , B ⊢ C} →
-      N [ V ][ W ] ≡ (N [ rename S_ W ]) [ V ]
+  extensionality-implicit : ∀ {a b} → ExtensionalityImplicit a b
+
+exts-ext : ∀ {Γ Δ Ε A B} (ρ : ∀ {A} → Γ ∋ A → Δ ∋ A) (σ : ∀ {A} → Δ ∋ A → Ε ⊢ A)
+  → exts σ {A} {B} ∘ ext ρ ≡ exts (σ ∘ ρ)
+exts-ext ρ σ = extensionality
+  λ{ Z     → refl
+   ; (S _) → refl
+   }
+
+cong-app-implicit : ∀ {A : Set} {B : A → Set} {f g : {x : A} → B x} →
+  (λ {x} → f {x}) ≡ (λ {x} → g {x}) → {x : A} → f {x} ≡ g {x}
+cong-app-implicit refl = refl
+
+exts²-ext² : ∀ {Γ Δ Ε A B C}
+  → (ρ : ∀ {A} → Γ ∋ A → Δ ∋ A)
+  → (σ : ∀ {A} → Δ ∋ A → Ε ⊢ A)
+  → exts (exts σ {C}) {A} {B} ∘ (ext (ext ρ)) ≡ exts (exts (σ ∘ ρ))
+exts²-ext² ρ σ = extensionality λ x →
+  ≡begin
+    (exts (exts σ) ∘ ext (ext ρ)) x
+  ≡⟨ Eq.cong-app (exts-ext (ext ρ) (exts σ)) x ⟩
+    exts (exts σ ∘ ext ρ) x
+  ≡⟨ Eq.cong-app (cong-app-implicit (cong-app-implicit
+       (Eq.cong exts (extensionality-implicit (exts-ext ρ σ)))))
+       x ⟩
+    exts (exts (σ ∘ ρ)) x
+  ≡∎
+
+subst-rename : ∀ {Γ Δ Ε A} (M : Γ ⊢ A) (ρ : ∀ {A} → Γ ∋ A → Δ ∋ A) (σ : ∀ {A} → Δ ∋ A → Ε ⊢ A)
+  → subst σ (rename ρ M) ≡ subst (σ ∘ ρ) M
+subst-rename (` x) ρ σ = refl
+subst-rename {Γ} {Ε = Ε} {A} (ƛ M) ρ σ
+  rewrite subst-rename M (ext ρ) (exts σ)
+  = Eq.cong (λ (∙ : ∀ {A} → Γ , _ ∋ A → Ε , _ ⊢ A) →
+               ƛ subst ∙ M)
+      (extensionality-implicit (exts-ext ρ σ))
+subst-rename (L · M) ρ σ
+  rewrite subst-rename L ρ σ
+        | subst-rename M ρ σ
+  = refl
+subst-rename `zero ρ σ = refl
+subst-rename (`suc M) ρ σ rewrite subst-rename M ρ σ = refl
+subst-rename {Γ} {Ε = Ε} {A} (case L M N) ρ σ
+  rewrite subst-rename L ρ σ
+        | subst-rename M ρ σ
+        | subst-rename N (ext ρ) (exts σ)
+  = Eq.cong (λ (∙ : ∀ {A} → Γ , _ ∋ A → Ε , _ ⊢ A) →
+               case (subst (σ ∘ ρ) L) (subst (σ ∘ ρ) M) (subst ∙ N))
+      (extensionality-implicit (exts-ext ρ σ))
+subst-rename {Γ} {Ε = Ε} {A} (μ M) ρ σ
+  rewrite subst-rename M (ext ρ) (exts σ)
+  = Eq.cong (λ (∙ : ∀ {A} → Γ , _ ∋ A → Ε , _ ⊢ A) →
+               μ subst ∙ M)
+      (extensionality-implicit (exts-ext ρ σ))
+subst-rename (con _) ρ σ = refl
+subst-rename (L `* M) ρ σ
+  rewrite subst-rename L ρ σ
+        | subst-rename M ρ σ
+  = refl
+subst-rename {Γ} {Ε = Ε} {A} (`let L M) ρ σ
+  rewrite subst-rename L ρ σ
+        | subst-rename M (ext ρ) (exts σ)
+  = Eq.cong (λ (∙ : ∀ {A} → Γ , _ ∋ A → Ε , _ ⊢ A) →
+               `let (subst (σ ∘ ρ) L) (subst ∙ M))
+      (extensionality-implicit (exts-ext ρ σ))
+subst-rename `⟨ L , M ⟩ ρ σ
+  rewrite subst-rename L ρ σ
+        | subst-rename M ρ σ
+  = refl
+subst-rename (`proj₁ M) ρ σ rewrite subst-rename M ρ σ = refl
+subst-rename (`proj₂ M) ρ σ rewrite subst-rename M ρ σ = refl
+subst-rename {Γ} {A = D} (case× {A = A} {B = B} {C = C} L M) ρ σ
+  rewrite subst-rename L ρ σ
+        | subst-rename M (ext (ext ρ)) (exts (exts σ))
+  = Eq.cong₂ case× refl
+      (Eq.cong-app (cong-app-implicit
+        (Eq.cong subst (extensionality-implicit
+          (exts²-ext² ρ σ))))
+         M)
+subst-rename (`inj₁ M) ρ σ rewrite subst-rename M ρ σ = refl
+subst-rename (`inj₂ M) ρ σ rewrite subst-rename M ρ σ = refl
+subst-rename (case⊎ L M N) ρ σ
+  rewrite subst-rename L ρ σ
+        | subst-rename M (ext ρ) (exts σ)
+        | subst-rename N (ext ρ) (exts σ)
+  = Eq.cong₂ (case⊎ (subst (σ ∘ ρ) L))
+      (Eq.cong-app (cong-app-implicit
+        (Eq.cong subst (extensionality-implicit
+          (exts-ext ρ σ))))
+        M)
+      (Eq.cong-app (cong-app-implicit
+        (Eq.cong subst (extensionality-implicit
+          (exts-ext ρ σ))))
+        N)
+subst-rename `tt ρ σ = refl
+subst-rename (case⊤ L M) ρ σ
+  rewrite subst-rename L ρ σ
+        | subst-rename M ρ σ
+  = refl
+subst-rename (case⊥ M) ρ σ rewrite subst-rename M ρ σ = refl
+subst-rename `[] ρ σ = refl
+subst-rename (L `∷ M) ρ σ
+  rewrite subst-rename L ρ σ
+        | subst-rename M ρ σ
+  = refl
+subst-rename (caseL L M N) ρ σ
+  rewrite subst-rename L ρ σ
+        | subst-rename M ρ σ
+        | subst-rename N (ext (ext ρ)) (exts (exts σ))
+  = Eq.cong (caseL (subst (σ ∘ ρ) L) (subst (σ ∘ ρ) M))
+      (Eq.cong-app (cong-app-implicit
+        (Eq.cong subst (extensionality-implicit
+          (exts²-ext² ρ σ))))
+        N)
+
+exts-` : ∀ {Γ A B}
+  → exts {Γ} `_ {A} {B} ≡ `_
+exts-` = extensionality
+  λ{ Z     → refl
+   ; (S x) → refl
+   }
+
+exts²-` : ∀ {Γ A B C}
+  → exts {Γ , A} (exts {Γ} `_) {B} {C} ≡ `_
+exts²-` = extensionality
+  λ{ Z         → refl
+   ; (S Z)     → refl
+   ; (S (S x)) → refl
+   }
+
+subst-` : ∀ {Γ A} (M : Γ ⊢ A)
+  → subst `_ M ≡ M
+subst-exts-` : ∀ {Γ A B} (M : Γ , A ⊢ B)
+  → subst (exts `_) M ≡ M
+subst-exts²-` : ∀ {Γ A B C} (M : Γ , A , B ⊢ C)
+  → subst (exts (exts `_)) M ≡ M
+
+subst-` (` x) = refl
+subst-` (ƛ M) rewrite subst-exts-` M = refl
+subst-` (L · M) rewrite subst-` L | subst-` M = refl
+subst-` `zero = refl
+subst-` (`suc M) rewrite subst-` M = refl
+subst-` (case L M N) rewrite subst-` L | subst-` M | subst-exts-` N = refl
+subst-` (μ M) rewrite subst-exts-` M = refl
+subst-` (con _) = refl
+subst-` (L `* M) rewrite subst-` L | subst-` M = refl
+subst-` (`let L M) rewrite subst-` L | subst-exts-` M = refl
+subst-` `⟨ L , M ⟩ rewrite subst-` L | subst-` M = refl
+subst-` (`proj₁ M) rewrite subst-` M = refl
+subst-` (`proj₂ M) rewrite subst-` M = refl
+subst-` (case× L M) rewrite subst-` L | subst-exts²-` M = refl
+subst-` (`inj₁ M) rewrite subst-` M = refl
+subst-` (`inj₂ M) rewrite subst-` M = refl
+subst-` (case⊎ L M N)
+  rewrite subst-` L
+        | subst-exts-` M
+        | subst-exts-` N
+  = refl
+subst-` `tt = refl
+subst-` (case⊤ L M) rewrite subst-` L | subst-` M = refl
+subst-` (case⊥ M) rewrite subst-` M = refl
+subst-` `[] = refl
+subst-` (L `∷ M) rewrite subst-` L | subst-` M = refl
+subst-` (caseL L M N)
+  rewrite subst-` L
+        | subst-` M
+        | subst-exts²-` N
+  = refl
+
+subst-exts-` M =
+  ≡begin
+    subst (exts `_) M
+  ≡⟨ Eq.cong-app (cong-app-implicit
+       (Eq.cong subst (extensionality-implicit exts-`)))
+       M ⟩
+    subst `_ M
+  ≡⟨ subst-` M ⟩
+    M
+  ≡∎
+
+subst-exts²-` {Γ} {A = A} M =
+  ≡begin
+    subst (exts (exts `_)) M
+  ≡⟨ Eq.cong-app (cong-app-implicit
+       (Eq.cong subst (extensionality-implicit exts²-`)))
+       M ⟩
+    subst `_ M
+  ≡⟨ subst-` M ⟩
+    M
+  ≡∎
+
+ext² : ∀ {Γ Δ Ε A} (ρ₁ : ∀ {A} → Γ ∋ A → Δ ∋ A) (ρ₂ : ∀ {A} → Δ ∋ A → Ε ∋ A)
+  → (λ {B} x → ext ρ₂ {A} {B} (ext ρ₁ x)) ≡ (λ {B} → ext (ρ₂ ∘ ρ₁) {A} {B})
+ext² ρ₁ ρ₂ = extensionality-implicit (extensionality
+ λ{ Z     → refl
+  ; (S x) → refl
+  })
+
+ext⁴ : ∀ {Γ Δ Ε A C} (ρ₁ : ∀ {A} → Γ ∋ A → Δ ∋ A) (ρ₂ : ∀ {A} → Δ ∋ A → Ε ∋ A)
+  → (λ {B : Type} x → ext (ext ρ₂ {C}) {A} {B} (ext (ext ρ₁) x)) ≡ (λ {B : Type} → ext (ext (ρ₂ ∘ ρ₁)) {A} {B})
+ext⁴ ρ₁ ρ₂ = extensionality-implicit (extensionality
+ λ{ Z     → refl
+  ; (S x) → Eq.cong S_ (Eq.cong-app (cong-app-implicit (ext² ρ₁ ρ₂)) x)
+  })
+
+rename² : ∀ {Γ Δ Ε A} (ρ₁ : ∀ {A} → Γ ∋ A → Δ ∋ A) (ρ₂ : ∀ {A} → Δ ∋ A → Ε ∋ A) (M : Γ ⊢ A)
+  → rename ρ₂ {A} (rename ρ₁ M) ≡ rename (ρ₂ ∘ ρ₁) M
+rename² ρ₁ ρ₂ (` x) = refl
+rename² {Γ} {Ε = Ε} ρ₁ ρ₂ (ƛ M)
+  rewrite rename² (ext ρ₁) (ext ρ₂) M
+  = Eq.cong (λ (∙ : ∀ {A} → Γ , _ ∋ A → Ε , _ ∋ A) → ƛ rename ∙ M)
+      (ext² ρ₁ ρ₂)
+rename² ρ₁ ρ₂ (L · M) rewrite rename² ρ₁ ρ₂ L | rename² ρ₁ ρ₂ M = refl
+rename² ρ₁ ρ₂ `zero = refl
+rename² ρ₁ ρ₂ (`suc M) rewrite rename² ρ₁ ρ₂ M = refl
+rename² {Γ} {Ε = Ε} ρ₁ ρ₂ (case L M N)
+  rewrite rename² ρ₁ ρ₂ L
+        | rename² ρ₁ ρ₂ M
+        | rename² (ext ρ₁) (ext ρ₂) N
+  = Eq.cong
+      (λ (∙ : ∀ {A} → Γ , _ ∋ A → Ε , _ ∋ A) →
+        case (rename (ρ₂ ∘ ρ₁) L) (rename (ρ₂ ∘ ρ₁) M) (rename ∙ N))
+      (ext² ρ₁ ρ₂)
+rename² {Γ} {Ε = Ε} ρ₁ ρ₂ (μ M) rewrite rename² (ext ρ₁) (ext ρ₂) M
+  = Eq.cong
+      (λ (∙ : ∀ {A} → Γ , _ ∋ A → Ε , _ ∋ A) → μ rename ∙ M)
+      (ext² ρ₁ ρ₂)
+rename² ρ₁ ρ₂ (con _) = refl
+rename² ρ₁ ρ₂ (L `* M) rewrite rename² ρ₁ ρ₂ L | rename² ρ₁ ρ₂ M = refl
+rename² {Γ} {Ε = Ε} ρ₁ ρ₂ (`let L M)
+  rewrite rename² ρ₁ ρ₂ L
+        | rename² (ext ρ₁) (ext ρ₂) M
+  = Eq.cong
+      (λ (∙ : ∀ {A} → Γ , _ ∋ A → Ε , _ ∋ A) →
+         `let (rename (ρ₂ ∘ ρ₁) L) (rename ∙ M))
+      (ext² ρ₁ ρ₂)
+rename² ρ₁ ρ₂ `⟨ L , M ⟩ rewrite rename² ρ₁ ρ₂ L | rename² ρ₁ ρ₂ M = refl
+rename² ρ₁ ρ₂ (`proj₁ M) rewrite rename² ρ₁ ρ₂ M = refl
+rename² ρ₁ ρ₂ (`proj₂ M) rewrite rename² ρ₁ ρ₂ M = refl
+rename² {Γ} {Ε = Ε} ρ₁ ρ₂ (case× L M)
+  rewrite rename² ρ₁ ρ₂ L
+  rewrite rename² (ext (ext ρ₁)) (ext (ext ρ₂)) M
+  = Eq.cong
+      (λ (∙ : ∀ {A} → Γ , _ , _ ∋ A → Ε , _ , _ ∋ A) →
+         case× (rename (ρ₂ ∘ ρ₁) L) (rename ∙ M))
+      (ext⁴ ρ₁ ρ₂)
+rename² ρ₁ ρ₂ (`inj₁ M) rewrite rename² ρ₁ ρ₂ M = refl
+rename² ρ₁ ρ₂ (`inj₂ M) rewrite rename² ρ₁ ρ₂ M = refl
+rename² {Γ} {Ε = Ε} ρ₁ ρ₂ (case⊎ L M N)
+  rewrite rename² ρ₁ ρ₂ L
+        | rename² (ext ρ₁) (ext ρ₂) M
+        | rename² (ext ρ₁) (ext ρ₂) N
+  = Eq.cong₂
+      (λ (∙₁ : ∀ {A} → Γ , _ ∋ A → Ε , _ ∋ A)
+         (∙₂ : ∀ {A} → Γ , _ ∋ A → Ε , _ ∋ A) →
+         case⊎ (rename (ρ₂ ∘ ρ₁) L) (rename ∙₁ M) (rename ∙₂ N))
+      (ext² ρ₁ ρ₂)
+      (ext² ρ₁ ρ₂)
+rename² ρ₁ ρ₂ `tt = refl
+rename² ρ₁ ρ₂ (case⊤ L M) rewrite rename² ρ₁ ρ₂ L | rename² ρ₁ ρ₂ M = refl
+rename² ρ₁ ρ₂ (case⊥ M) rewrite rename² ρ₁ ρ₂ M = refl
+rename² ρ₁ ρ₂ `[] = refl
+rename² ρ₁ ρ₂ (L `∷ M) rewrite rename² ρ₁ ρ₂ L | rename² ρ₁ ρ₂ M = refl
+rename² {Γ} {Ε = Ε} ρ₁ ρ₂ (caseL L M N)
+  rewrite rename² ρ₁ ρ₂ L
+        | rename² ρ₁ ρ₂ M
+        | rename² (ext (ext ρ₁)) (ext (ext ρ₂)) N
+  = Eq.cong
+      (λ (∙ : ∀ {A} → Γ , _ , _ ∋ A → Ε , _ , _ ∋ A) →
+        caseL (rename (ρ₂ ∘ ρ₁) L) (rename (ρ₂ ∘ ρ₁) M) (rename ∙ N))
+      (ext⁴ ρ₁ ρ₂)
+
+`-ext : ∀ {Γ Δ : Context} {A B : Type} (ρ : ∀ {A : Type} → Γ ∋ A → Δ ∋ A)
+  → `_ {A = B} ∘ ext ρ {A} ≡ exts (`_ ∘ ρ)
+`-ext ρ = extensionality
+  λ{ Z     → refl
+   ; (S x) → refl
+   }
+
+rename-as-subst : ∀ {Γ Δ A} (ρ : ∀ {A} → Γ ∋ A → Δ ∋ A)
+  → rename ρ {A} ≡ subst (`_ ∘ ρ)
+rename-as-subst ρ = extensionality λ x →
+  Eq.trans
+    (Eq.sym (subst-` (rename ρ x)))
+    (subst-rename x ρ `_)
+
+_⟶_ : ∀ {Γ Δ Ε}
+  → (∀ {A : Type} → Γ ∋ A → Δ ⊢ A)
+  → (∀ {A : Type} → Δ ∋ A → Ε ⊢ A)
+  → (∀ {A : Type} → Γ ∋ A → Ε ⊢ A)
+σ₁ ⟶ σ₂ = subst σ₂ ∘ σ₁
+
+rename-exts : ∀ {Γ Δ Ε A B} (σ : ∀ {A} → Γ ∋ A → Δ ⊢ A) (ρ : ∀ {A} → Δ ∋ A → Ε ∋ A)
+  → rename (ext ρ {B}) {A} ∘ exts σ ≡ exts (rename ρ ∘ σ)
+rename-exts σ ρ = extensionality
+  λ{ Z → refl
+   ; (S x) →
+     ≡begin
+       rename (ext ρ) (exts σ (S x))
+     ≡⟨⟩
+       rename (ext ρ) (rename S_ (σ x))
+     ≡⟨ rename² S_ (ext ρ) (σ x) ⟩
+       rename (ext ρ ∘ S_) (σ x)
+     ≡⟨⟩
+       rename (S_ ∘ ρ) (σ x)
+     ≡⟨ Eq.sym (rename² ρ S_ (σ x)) ⟩
+       rename S_ (rename ρ (σ x))
+     ≡⟨⟩
+       exts (rename ρ ∘ σ) (S x)
+     ≡∎
+   }
+
+rename-exts² : ∀ {Γ Δ Ε A B C} (σ : ∀ {A} → Γ ∋ A → Δ ⊢ A) (ρ : ∀ {A} → Δ ∋ A → Ε ∋ A)
+  → rename (ext (ext ρ {C}) {B}) {A} ∘ exts (exts σ) ≡ exts (exts (rename ρ ∘ σ))
+rename-exts² σ ρ =
+  ≡begin
+    rename (ext (ext ρ)) ∘ exts (exts σ)
+  ≡⟨ rename-exts (exts σ) (ext ρ) ⟩
+    exts (rename (ext ρ) ∘ exts σ)
+  ≡⟨ cong-app-implicit (cong-app-implicit
+       (Eq.cong exts (extensionality-implicit
+         (rename-exts σ ρ)))) ⟩
+    exts (exts (rename ρ ∘ σ))
+  ≡∎
+
+rename-subst : ∀ {Γ Δ Ε A} (σ : ∀ {A} → Γ ∋ A → Δ ⊢ A) (ρ : ∀ {A} → Δ ∋ A → Ε ∋ A) (M : Γ ⊢ A)
+  → rename ρ (subst σ M) ≡ subst (rename ρ ∘ σ) M
+rename-subst σ ρ (` x) = refl
+rename-subst σ ρ (ƛ M)
+  rewrite rename-subst (exts σ) (ext ρ) M
+  = Eq.cong ƛ_
+      (Eq.cong-app (cong-app-implicit
+        (Eq.cong subst (extensionality-implicit
+          (rename-exts σ ρ))))
+         M)
+rename-subst σ ρ (L · M)
+  rewrite rename-subst σ ρ L
+        | rename-subst σ ρ M
+  = refl
+rename-subst σ ρ `zero = refl
+rename-subst σ ρ (`suc M) rewrite rename-subst σ ρ M = refl
+rename-subst σ ρ (case L M N)
+  rewrite rename-subst σ ρ L
+        | rename-subst σ ρ M
+        | rename-subst (exts σ) (ext ρ) N
+  = Eq.cong (case (subst (rename ρ ∘ σ) L) (subst (rename ρ ∘ σ) M))
+      (Eq.cong-app (cong-app-implicit
+        (Eq.cong subst (extensionality-implicit
+          (rename-exts σ ρ))))
+        N)
+rename-subst σ ρ (μ M)
+  rewrite rename-subst (exts σ) (ext ρ) M
+  = Eq.cong μ_
+      (Eq.cong-app (cong-app-implicit
+        (Eq.cong subst (extensionality-implicit
+          (rename-exts σ ρ))))
+         M)
+rename-subst σ ρ (con _) = refl
+rename-subst σ ρ (L `* M)
+  rewrite rename-subst σ ρ L
+        | rename-subst σ ρ M
+  = refl
+rename-subst σ ρ (`let L M)
+  rewrite rename-subst σ ρ L
+        | rename-subst (exts σ) (ext ρ) M
+  = Eq.cong (`let (subst (rename ρ ∘ σ) L))
+      (Eq.cong-app (cong-app-implicit
+        (Eq.cong subst (extensionality-implicit
+          (rename-exts σ ρ))))
+        M)
+rename-subst σ ρ `⟨ L , M ⟩
+  rewrite rename-subst σ ρ L
+        | rename-subst σ ρ M
+  = refl
+rename-subst σ ρ (`proj₁ M) rewrite rename-subst σ ρ M = refl
+rename-subst σ ρ (`proj₂ M) rewrite rename-subst σ ρ M = refl
+rename-subst σ ρ (case× L M)
+  rewrite rename-subst σ ρ L
+        | rename-subst (exts (exts σ)) (ext (ext ρ)) M
+  = Eq.cong (case× (subst (rename ρ ∘ σ) L))
+      (Eq.cong-app (cong-app-implicit
+        (Eq.cong subst (extensionality-implicit
+          (rename-exts² σ ρ))))
+        M)
+rename-subst σ ρ (`inj₁ M) rewrite rename-subst σ ρ M = refl
+rename-subst σ ρ (`inj₂ M) rewrite rename-subst σ ρ M = refl
+rename-subst σ ρ (case⊎ L M N)
+  rewrite rename-subst σ ρ L
+        | rename-subst (exts σ) (ext ρ) M
+        | rename-subst (exts σ) (ext ρ) N
+  = Eq.cong₂ (case⊎ (subst (rename ρ ∘ σ) L))
+      (Eq.cong-app (cong-app-implicit
+        (Eq.cong subst (extensionality-implicit
+          (rename-exts σ ρ))))
+        M)
+      ((Eq.cong-app (cong-app-implicit
+        (Eq.cong subst (extensionality-implicit
+          (rename-exts σ ρ))))
+        N))
+rename-subst σ ρ `tt = refl
+rename-subst σ ρ (case⊤ L M)
+  rewrite rename-subst σ ρ L
+        | rename-subst σ ρ M
+  = refl
+rename-subst σ ρ (case⊥ M) rewrite rename-subst σ ρ M = refl
+rename-subst σ ρ `[] = refl
+rename-subst σ ρ (M `∷ N)
+  rewrite rename-subst σ ρ M
+        | rename-subst σ ρ N
+  = refl
+rename-subst σ ρ (caseL L M N)
+  rewrite rename-subst σ ρ L
+        | rename-subst σ ρ M
+        | rename-subst (exts (exts σ)) (ext (ext ρ)) N
+  = Eq.cong (caseL (subst (rename ρ ∘ σ) L) (subst (rename ρ ∘ σ) M))
+      (Eq.cong-app (cong-app-implicit
+        (Eq.cong subst (extensionality-implicit
+          (rename-exts² σ ρ))))
+        N)
+
+subst-exts-∘-exts : ∀ {Γ Δ Ε A B} (σ₁ : ∀ {A : Type} → Γ ∋ A → Δ ⊢ A) (σ₂ : ∀ {A} → Δ ∋ A → Ε ⊢ A)
+  → subst (exts σ₂) ∘ exts σ₁ ≡ exts (subst σ₂ ∘ σ₁) {A} {B}
+subst-exts-∘-exts {Δ = Δ} σ₁ σ₂ = extensionality λ where
+  Z     → refl
+  (S x) →
+    ≡begin
+      subst (exts σ₂) (exts σ₁ (S x))
+    ≡⟨⟩
+      subst (exts σ₂) (rename S_ (σ₁ x))
+    ≡⟨ subst-rename (σ₁ x) S_ (exts σ₂) ⟩
+      subst (exts σ₂ ∘ S_) (σ₁ x)
+    ≡⟨⟩
+      subst (rename S_ ∘ σ₂) (σ₁ x)
+    ≡⟨ Eq.sym (rename-subst σ₂ S_ (σ₁ x)) ⟩
+      rename S_ (subst σ₂ (σ₁ x))
+    ≡⟨⟩
+      exts (subst σ₂ ∘ σ₁) (S x)
+    ≡∎
+
+subst-exts²-∘-exts² : ∀ {Γ Δ Ε A B C} (σ₁ : ∀ {A} → Γ ∋ A → Δ ⊢ A) (σ₂ : ∀ {A} → Δ ∋ A → Ε ⊢ A)
+  → subst (exts (exts σ₂ {A})) ∘ exts (exts σ₁) ≡ exts (exts (subst σ₂ ∘ σ₁)) {B} {C}
+subst-exts²-∘-exts² {Δ = Δ} σ₁ σ₂ = extensionality λ where
+  Z → refl
+  (S x) →
+    ≡begin
+      subst (exts (exts σ₂)) (exts (exts σ₁) (S x))
+    ≡⟨⟩
+      subst (exts (exts σ₂)) (rename S_ (exts σ₁ x))
+    ≡⟨ subst-rename (exts σ₁ x) S_ (exts (exts σ₂)) ⟩
+      subst (exts (exts σ₂) ∘ S_) (exts σ₁ x)
+    ≡⟨⟩
+      subst (rename S_ ∘ exts σ₂) (exts σ₁ x)
+    ≡⟨ Eq.sym (rename-subst (exts σ₂) S_ (exts σ₁ x)) ⟩
+      rename S_ (subst (exts σ₂) (exts σ₁ x))
+    ≡⟨ Eq.cong (rename S_) (Eq.cong-app (subst-exts-∘-exts σ₁ σ₂) x) ⟩
+      rename S_ (exts (subst σ₂ ∘ σ₁) x)
+    ≡⟨⟩
+      exts (exts (subst σ₂ ∘ σ₁)) (S x)
+    ≡∎
+
+subst² : ∀ {Γ Δ Ε A} (σ₁ : ∀ {A} → Γ ∋ A → Δ ⊢ A) (σ₂ : ∀ {A} → Δ ∋ A → Ε ⊢ A) (M : Γ ⊢ A)
+  → subst σ₂ {A} (subst σ₁ M) ≡ subst (σ₁ ⟶ σ₂) M
+subst² σ₁ σ₂ (` x) = refl
+subst² σ₁ σ₂ (ƛ M) rewrite subst² (exts σ₁) (exts σ₂) M =
+  Eq.cong ƛ_
+    (Eq.cong-app (cong-app-implicit (Eq.cong subst
+      (extensionality-implicit
+        (subst-exts-∘-exts σ₁ σ₂))))
+      M)
+subst² σ₁ σ₂ (L · M)
+  rewrite subst² σ₁ σ₂ L
+        | subst² σ₁ σ₂ M
+  = refl
+subst² σ₁ σ₂ `zero = refl
+subst² σ₁ σ₂ (`suc M) rewrite subst² σ₁ σ₂ M = refl
+subst² σ₁ σ₂ (case L M N)
+  rewrite subst² σ₁ σ₂ L
+        | subst² σ₁ σ₂ M
+        | subst² (exts σ₁) (exts σ₂) N
+  = Eq.cong (case _ _) (Eq.cong-app (cong-app-implicit (Eq.cong subst
+      (extensionality-implicit
+       (subst-exts-∘-exts σ₁ σ₂))))
+      N)
+subst² σ₁ σ₂ (μ M) rewrite subst² (exts σ₁) (exts σ₂) M =
+  Eq.cong μ_
+    (Eq.cong-app (cong-app-implicit (Eq.cong subst
+      (extensionality-implicit
+        (subst-exts-∘-exts σ₁ σ₂))))
+      M)
+subst² σ₁ σ₂ (con _) = refl
+subst² σ₁ σ₂ (L `* M) rewrite subst² σ₁ σ₂ L | subst² σ₁ σ₂ M = refl
+subst² σ₁ σ₂ (`let L M)
+  rewrite subst² σ₁ σ₂ L
+        | subst² (exts σ₁) (exts σ₂) M
+  = Eq.cong (`let _)
+      (Eq.cong-app (cong-app-implicit (Eq.cong subst
+        (extensionality-implicit
+          (subst-exts-∘-exts σ₁ σ₂))))
+        M)
+subst² σ₁ σ₂ `⟨ L , M ⟩ rewrite subst² σ₁ σ₂ L | subst² σ₁ σ₂ M = refl
+subst² σ₁ σ₂ (`proj₁ M) rewrite subst² σ₁ σ₂ M = refl
+subst² σ₁ σ₂ (`proj₂ M) rewrite subst² σ₁ σ₂ M = refl
+subst² σ₁ σ₂ (case× L M)
+  rewrite subst² σ₁ σ₂ L
+        | subst² (exts (exts σ₁)) (exts (exts σ₂)) M
+  = Eq.cong (case× _) (Eq.cong-app (cong-app-implicit (Eq.cong subst
+      (extensionality-implicit
+        (subst-exts²-∘-exts² σ₁ σ₂))))
+      M)
+subst² σ₁ σ₂ (`inj₁ M) rewrite subst² σ₁ σ₂ M = refl
+subst² σ₁ σ₂ (`inj₂ M) rewrite subst² σ₁ σ₂ M = refl
+subst² σ₁ σ₂ (case⊎ L M N)
+  rewrite subst² σ₁ σ₂ L
+        | subst² (exts σ₁) (exts σ₂) M
+        | subst² (exts σ₁) (exts σ₂) N
+  = Eq.cong₂ (case⊎ _)
+      (Eq.cong-app (cong-app-implicit (Eq.cong subst
+        (extensionality-implicit
+          (subst-exts-∘-exts σ₁ σ₂))))
+        M)
+      (Eq.cong-app (cong-app-implicit (Eq.cong subst
+        (extensionality-implicit
+          (subst-exts-∘-exts σ₁ σ₂))))
+        N)
+subst² σ₁ σ₂ `tt = refl
+subst² σ₁ σ₂ (case⊤ L M) rewrite subst² σ₁ σ₂ L | subst² σ₁ σ₂ M = refl
+subst² σ₁ σ₂ (case⊥ M) rewrite subst² σ₁ σ₂ M = refl
+subst² σ₁ σ₂ `[] = refl
+subst² σ₁ σ₂ (L `∷ M) rewrite subst² σ₁ σ₂ L | subst² σ₁ σ₂ M = refl
+subst² σ₁ σ₂ (caseL L M N)
+  rewrite subst² σ₁ σ₂ L
+        | subst² σ₁ σ₂ M
+        | subst² (exts (exts σ₁)) (exts (exts σ₂)) N
+  = Eq.cong (caseL _ _) (Eq.cong-app (cong-app-implicit (Eq.cong subst
+      (extensionality-implicit
+        (subst-exts²-∘-exts² σ₁ σ₂))))
+      N)
+
+substZero-renameS : ∀ {Γ A B} (M : Γ ⊢ A) (N : Γ ⊢ B)
+  → subst (substZero N) (rename S_ M) ≡ M
+substZero-renameS M N
+  rewrite subst-rename M S_ (substZero N)
+  = subst-` M
+
+subst-exts-renameS² : ∀ {Γ A B C} (M : Γ ⊢ A) (N : Γ ⊢ B)
+  → subst (exts (substZero N) {C}) (rename S_ (rename S_ M)) ≡ rename S_ M
+subst-exts-renameS² {C = C} M N
+  rewrite subst-rename (rename S_ M) (S_ {A = C}) (exts (substZero N))
+        | subst-rename M S_ (rename (S_ {A = C}) ∘ substZero N)
+        | Eq.sym (subst-rename M (S_ {A = C}) `_)
+        | subst-` (rename (S_ {A = C}) M)
+  = refl
+
+cong₃ : ∀ {A B C D : Set} (f : A → B → C → D) {x y u v w z}
+  →   x     ≡   y
+  →     u   ≡     v
+  →       w ≡       z
+  → f x u w ≡ f y v z
+cong₃ f refl refl refl = refl
+
+module _ {Γ A B} (V : Γ ⊢ A) (W : Γ ⊢ B) where
+  double-subst′ : ∀ {C} → (N : Γ , A , B ⊢ C)
+    → subst (subst (substZero V) ∘ substZero (rename S_ W)) N ≡ (N [ rename S_ W ]) [ V ]
+  double-subst′ (` Z)
+    rewrite subst-rename W S_ (substZero V)
+          | subst-` W = refl
+  double-subst′ (` (S Z)) = refl
+  double-subst′ (` (S (S x))) = refl
+  double-subst′ {C} (ƛ M)
+    rewrite subst² (exts (substZero (rename S_ W))) (exts (substZero V)) M
+    = Eq.cong
+        (λ (∙ : ∀ {C} → _ ∋ C → _ ⊢ C) → ƛ subst ∙ M)
+        (extensionality-implicit
+          (Eq.sym (subst-exts-∘-exts (substZero (rename S_ W)) (substZero V))))
+  double-subst′ (L · M) rewrite double-subst′ L | double-subst′ M = refl
+  double-subst′ `zero = refl
+  double-subst′ (`suc M) rewrite double-subst′ M = refl
+  double-subst′ {C = C} (case L M N)
+    rewrite double-subst′ L
+          | double-subst′ M
+          | subst² (exts (substZero (rename S_ W))) (exts (substZero V)) N
+    = Eq.cong (case _ _) (Eq.cong-app (cong-app-implicit (Eq.cong subst
+        (extensionality-implicit
+          (Eq.sym
+            (subst-exts-∘-exts (substZero (rename S_ W)) (substZero V))))))
+        N)
+  double-subst′ (μ M)
+    rewrite subst² (exts (substZero (rename S_ W))) (exts (substZero V)) M
+    = Eq.cong μ_ (Eq.cong-app (cong-app-implicit (Eq.cong subst
+        (extensionality-implicit
+          (Eq.sym
+            (subst-exts-∘-exts (substZero (rename S_ W)) (substZero V))))))
+        M)
+  double-subst′ (con _) = refl
+  double-subst′ (L `* M) =
+    Eq.cong₂ _`*_ (double-subst′ L) (double-subst′ M)
+  double-subst′ (`let L M)
+    rewrite double-subst′ L
+          | subst² (exts (substZero (rename S_ W))) (exts (substZero V)) M
+    = Eq.cong (`let _) (Eq.cong-app (cong-app-implicit (Eq.cong subst
+        (extensionality-implicit
+          (Eq.sym
+            (subst-exts-∘-exts (substZero (rename S_ W)) (substZero V))))))
+        M)
+  double-subst′ (`⟨ L , M ⟩) rewrite double-subst′ L | double-subst′ M = refl
+  double-subst′ (`proj₁ M) rewrite double-subst′ M = refl
+  double-subst′ (`proj₂ M) rewrite double-subst′ M = refl
+  double-subst′ (case× L M)
+    rewrite double-subst′ L
+          | subst² (exts (exts (substZero (rename S_ W)))) (exts (exts (substZero V))) M
+    = Eq.cong (case× _) (Eq.cong-app (cong-app-implicit (Eq.cong subst
+        (extensionality-implicit
+          (Eq.sym
+            (subst-exts²-∘-exts² (substZero (rename S_ W)) (substZero V))))))
+        M)
+  double-subst′ (`inj₁ M) rewrite double-subst′ M = refl
+  double-subst′ (`inj₂ M) rewrite double-subst′ M = refl
+  double-subst′ (case⊎ L M N)
+    rewrite double-subst′ L
+          | subst² (exts (substZero (rename S_ W))) (exts (substZero V)) M
+          | subst² (exts (substZero (rename S_ W))) (exts (substZero V)) N
+    = Eq.cong₂ (case⊎ _)
+        (Eq.cong-app (cong-app-implicit (Eq.cong subst
+          (extensionality-implicit
+            (Eq.sym
+              (subst-exts-∘-exts (substZero (rename S_ W)) (substZero V))))))
+          M)
+        (Eq.cong-app (cong-app-implicit (Eq.cong subst
+          (extensionality-implicit
+            (Eq.sym
+              (subst-exts-∘-exts (substZero (rename S_ W)) (substZero V))))))
+          N)
+  double-subst′ `tt = refl
+  double-subst′ (case⊤ L M) rewrite double-subst′ L | double-subst′ M = refl
+  double-subst′ (case⊥ M) rewrite double-subst′ M = refl
+  double-subst′ `[] = refl
+  double-subst′ (L `∷ M) rewrite double-subst′ L | double-subst′ M = refl
+  double-subst′ (caseL L M N)
+    rewrite double-subst′ L
+          | double-subst′ M
+          | subst² (exts (exts (substZero (rename S_ W)))) (exts (exts (substZero V))) N
+    = Eq.cong (caseL _ _) (Eq.cong-app (cong-app-implicit (Eq.cong subst
+        (extensionality-implicit
+          (Eq.sym
+            (subst-exts²-∘-exts² (substZero (rename S_ W)) (substZero V))))))
+        N)
+
+double-subst :
+  ∀ {Γ A B C} {V : Γ ⊢ A} {W : Γ ⊢ B} {N : Γ , A , B ⊢ C} →
+    N [ V ][ W ] ≡ (N [ rename S_ W ]) [ V ]
+double-subst {V = V} {W} {N}
+  rewrite double-subst′ V W N
+        | subst² (substZero (rename S_ W)) (substZero V) N
+  = Eq.cong-app (cong-app-implicit (Eq.cong subst
+      (extensionality-implicit (extensionality λ where
+        Z         → Eq.sym (substZero-renameS W V)
+        (S Z)     → refl
+        (S (S x)) → refl))))
+      N
 ```
 Note the arguments need to be swapped and `W` needs to have
 its context adjusted via renaming in order for the right-hand

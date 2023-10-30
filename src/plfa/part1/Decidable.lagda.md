@@ -292,24 +292,36 @@ trouble normalising evidence of negation.)
 
 Analogous to the function above, define a function to decide strict inequality:
 ```agda
-postulate
-  _<?_ : ∀ (m n : ℕ) → Dec (m < n)
+_<?_ : ∀ (m n : ℕ) → Dec (m < n)
 ```
 
 ```agda
--- Your code goes here
+0 <? zero = no λ()
+0 <? suc n = yes z<s
+suc m <? zero = no λ()
+suc m <? suc n
+  with m <? n
+...  | yes m<n = yes (s<s m<n)
+...  | no ¬m<n = no λ{ (s<s m<n) → ¬m<n m<n }
 ```
 
 #### Exercise `_≡ℕ?_` (practice)
 
 Define a function to decide whether two naturals are equal:
 ```agda
-postulate
-  _≡ℕ?_ : ∀ (m n : ℕ) → Dec (m ≡ n)
+_≡ℕ?_ : ∀ (m n : ℕ) → Dec (m ≡ n)
 ```
 
 ```agda
--- Your code goes here
+open import Data.Nat.Properties using (suc-injective)
+
+0     ≡ℕ? 0     = yes refl
+suc _ ≡ℕ? 0     = no λ()
+0     ≡ℕ? suc _ = no λ()
+suc m ≡ℕ? suc n
+  with m ≡ℕ? n
+...  | yes refl = yes refl
+...  | no  m≢n  = no λ Sm≡Sn → m≢n (suc-injective Sm≡Sn)
 ```
 
 
@@ -536,10 +548,22 @@ on which matches; but either is equally valid.
 
 Show that erasure relates corresponding boolean and decidable operations:
 ```agda
-postulate
-  ∧-× : ∀ {A B : Set} (x : Dec A) (y : Dec B) → ⌊ x ⌋ ∧ ⌊ y ⌋ ≡ ⌊ x ×-dec y ⌋
-  ∨-⊎ : ∀ {A B : Set} (x : Dec A) (y : Dec B) → ⌊ x ⌋ ∨ ⌊ y ⌋ ≡ ⌊ x ⊎-dec y ⌋
-  not-¬ : ∀ {A : Set} (x : Dec A) → not ⌊ x ⌋ ≡ ⌊ ¬? x ⌋
+∧-× : ∀ {A B : Set} (x : Dec A) (y : Dec B) → ⌊ x ⌋ ∧ ⌊ y ⌋ ≡ ⌊ x ×-dec y ⌋
+∨-⊎ : ∀ {A B : Set} (x : Dec A) (y : Dec B) → ⌊ x ⌋ ∨ ⌊ y ⌋ ≡ ⌊ x ⊎-dec y ⌋
+not-¬ : ∀ {A : Set} (x : Dec A) → not ⌊ x ⌋ ≡ ⌊ ¬? x ⌋
+```
+
+```agda
+∧-× (yes _) (yes _) = refl
+∧-× (yes _) (no _)  = refl
+∧-× (no _)  _       = refl
+
+∨-⊎ (yes _) _      = refl
+∨-⊎ (no _) (yes _) = refl
+∨-⊎ (no _) (no _)  = refl
+
+not-¬ (yes _) = refl
+not-¬ (no _) = refl
 ```
 
 #### Exercise `iff-erasure` (recommended)
@@ -548,14 +572,28 @@ Give analogues of the `_⇔_` operation from
 Chapter [Isomorphism](/Isomorphism/#iff),
 operation on booleans and decidables, and also show the corresponding erasure:
 ```agda
-postulate
-  _iff_ : Bool → Bool → Bool
-  _⇔-dec_ : ∀ {A B : Set} → Dec A → Dec B → Dec (A ⇔ B)
-  iff-⇔ : ∀ {A B : Set} (x : Dec A) (y : Dec B) → ⌊ x ⌋ iff ⌊ y ⌋ ≡ ⌊ x ⇔-dec y ⌋
+_iff_ : Bool → Bool → Bool
+_⇔-dec_ : ∀ {A B : Set} → Dec A → Dec B → Dec (A ⇔ B)
+iff-⇔ : ∀ {A B : Set} (x : Dec A) (y : Dec B) → ⌊ x ⌋ iff ⌊ y ⌋ ≡ ⌊ x ⇔-dec y ⌋
 ```
 
 ```agda
--- Your code goes here
+b₁ iff b₂ = b₁ ⊃ b₂ ∧ b₂ ⊃ b₁
+
+yes a ⇔-dec yes b = yes (record { to = λ _ → b ; from = λ _ → a })
+yes a ⇔-dec no ¬B = no (λ A⇔B → ¬B (_⇔_.to A⇔B a))
+no ¬A ⇔-dec yes b = no (λ A⇔B → ¬A (_⇔_.from A⇔B b))
+no ¬A ⇔-dec no ¬B =
+  yes
+    (record
+       { to = λ a → ⊥-elim (¬A a)
+       ; from = λ b → ⊥-elim (¬B b)
+       })
+
+iff-⇔ (yes a) (yes b) = refl
+iff-⇔ (yes a) (no ¬B) = refl
+iff-⇔ (no ¬A) (yes b) = refl
+iff-⇔ (no ¬A) (no ¬B) = refl
 ```
 
 ## Proof by reflection {#proof-by-reflection}
@@ -629,6 +667,18 @@ True Q = T ⌊ Q ⌋
 #### Exercise `False` (practice)
 
 Give analogues of `True`, `toWitness`, and `fromWitness` which work with *negated* properties. Call these `False`, `toWitnessFalse`, and `fromWitnessFalse`.
+
+```agda
+False : ∀ {Q : Set} → Dec (¬ Q) → Set
+False Q = T ⌊ Q ⌋
+
+toWitnessFalse : ∀ {A : Set} {D : Dec (¬ A)} → T ⌊ D ⌋ → ¬ A
+toWitnessFalse {D = yes ¬A} _ = ¬A
+
+fromWitnessFalse : ∀ {A : Set} {D : Dec (¬ A)} → ¬ A → T ⌊ D ⌋
+fromWitnessFalse {D = yes _}  _  = tt
+fromWitnessFalse {D = no ¬¬A} ¬A = ¬¬A ¬A
+```
 
 
 ## Standard Library

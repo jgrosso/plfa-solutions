@@ -193,7 +193,12 @@ two natural numbers.  Your definition may use `plus` as
 defined earlier.
 
 ```agda
--- Your code goes here
+mul : Term
+mul =
+  μ "*" ⇒ ƛ "m" ⇒ ƛ "n" ⇒
+    case ` "m"
+      [zero⇒ `zero
+      |suc "m" ⇒ plus · ` "n" · (` "*" · ` "m" · ` "n") ]
 ```
 
 
@@ -205,7 +210,14 @@ definition may use `plusᶜ` as defined earlier (or may not
 — there are nice definitions both ways).
 
 ```agda
--- Your code goes here
+mulᶜ : Term
+mulᶜ =
+  ƛ "m" ⇒ ƛ "n" ⇒ ƛ "s" ⇒ ƛ "z" ⇒
+  ` "m" · (` "n" · ` "s") · ` "z"
+  -- I guessed ` "m" · (` "n" · ` "s" · ` "z") · ` "z".
+  -- I looked up the right answer and used it instead,
+  -- in case we need the correct definition to prove things
+  -- later.
 ```
 
 
@@ -259,6 +271,18 @@ plus′ = μ′ + ⇒ ƛ′ m ⇒ ƛ′ n ⇒
 ```
 Write out the definition of multiplication in the same style.
 
+```agda
+mul′ : Term
+mul′ =
+  μ′ * ⇒ ƛ′ m ⇒ ƛ′ n ⇒
+    case′ m
+      [zero⇒ `zero
+      |suc m ⇒ plus′ · n · (* · m · n) ]
+  where
+  * = ` "*"
+  m = ` "m"
+  n = ` "n"
+```
 
 ### Formal vs informal
 
@@ -529,6 +553,8 @@ What is the result of the following substitution?
 3. `` (ƛ "y" ⇒ `zero · (ƛ "x" ⇒ ` "x")) ``
 4. `` (ƛ "y" ⇒ `zero · (ƛ "x" ⇒ `zero)) ``
 
+Option 3.
+
 
 #### Exercise `_[_:=_]′` (stretch)
 
@@ -539,7 +565,26 @@ clauses into a single function, defined by mutual recursion with
 substitution.
 
 ```agda
--- Your code goes here
+infix 9 _[_:=_]′
+infix 9 _[_:=_]′-under_
+
+_[_:=_]′ : Term → Id → Term → Term
+_[_:=_]′-under_ : Term → Id → Term → Id → Term
+
+(` x) [ y := V ]′ with x ≟ y
+...                  | yes _ = V
+...                  | no  _ = ` x
+(ƛ x ⇒ N) [ y := V ]′        = ƛ x ⇒ N [ y := V ]′-under x
+(L · M) [ y := V ]′          = L [ y := V ]′ · M [ y := V ]′
+`zero [ y := V ]′            = `zero
+(`suc M) [ y := V ]′         = `suc M [ y := V ]′
+(μ x ⇒ N) [ y := V ]′        = μ x ⇒ N [ y := V ]′-under x
+(case L [zero⇒ M |suc x ⇒ N ]) [ y := V ]′ =
+  case L [ y := V ]′ [zero⇒ M [ y := V ]′ |suc x ⇒ N [ y := V ]′-under x ]
+
+t [ y := V ]′-under x with x ≟ y
+...                      | yes _ = t
+...                      | no  _ = t [ y := V ]′
 ```
 
 
@@ -668,6 +713,8 @@ What does the following term step to?
 2.  `` (ƛ "x" ⇒ ` "x") · (ƛ "x" ⇒ ` "x") ``
 3.  `` (ƛ "x" ⇒ ` "x") · (ƛ "x" ⇒ ` "x") · (ƛ "x" ⇒ ` "x") ``
 
+Option 1.
+
 What does the following term step to?
 
     (ƛ "x" ⇒ ` "x") · (ƛ "x" ⇒ ` "x") · (ƛ "x" ⇒ ` "x")  —→  ???
@@ -675,6 +722,8 @@ What does the following term step to?
 1.  `` (ƛ "x" ⇒ ` "x") ``
 2.  `` (ƛ "x" ⇒ ` "x") · (ƛ "x" ⇒ ` "x") ``
 3.  `` (ƛ "x" ⇒ ` "x") · (ƛ "x" ⇒ ` "x") · (ƛ "x" ⇒ ` "x") ``
+
+Option 2.
 
 What does the following term step to?  (Where `twoᶜ` and `sucᶜ` are as
 defined above.)
@@ -684,6 +733,8 @@ defined above.)
 1.  `` sucᶜ · (sucᶜ · `zero) ``
 2.  `` (ƛ "z" ⇒ sucᶜ · (sucᶜ · ` "z")) · `zero ``
 3.  `` `zero ``
+
+Option 2.
 
 
 ## Reflexive and transitive closure
@@ -763,7 +814,37 @@ Show that the first notion of reflexive and transitive closure
 above embeds into the second. Why are they not isomorphic?
 
 ```agda
--- Your code goes here
+open import Relation.Binary.PropositionalEquality using (cong)
+open import plfa.part1.Isomorphism using (_≲_)
+
+_⊗—↠_ : ∀ {t u v : Term} →
+  t —↠ u →
+  u —↠ v →
+  t —↠ v
+(_ ∎)                 ⊗—↠ u—↠v = u—↠v
+(_ —→⟨ t—→t′ ⟩ t′—↠u) ⊗—↠ u—↠v = _ —→⟨ t—→t′ ⟩ (t′—↠u ⊗—↠ u—↠v)
+
+—↠≲—↠′ : ∀ (t t′ : Term) → t —↠ t′ ≲ t —↠′ t′
+—↠≲—↠′ t t′ =
+  record
+    { to = to
+    ; from = from
+    ; from∘to = from∘to
+    }
+  where
+
+  to : ∀ {t t′ : Term} → t —↠ t′ → t —↠′ t′
+  to (_ ∎) = refl′
+  to (_ —→⟨ t—→u ⟩ u—↠t′) = trans′ (step′ t—→u) (to u—↠t′)
+
+  from : ∀ {t t′ : Term} → t —↠′ t′ → t —↠ t′
+  from refl′                 = _ ∎
+  from (step′ t—→t′)         = _ —→⟨ t—→t′ ⟩ _ ∎
+  from (trans′ t—↠′u u—↠′t′) = from t—↠′u ⊗—↠ from u—↠′t′
+
+  from∘to : ∀ {t t′ : Term} (t—↠t′ : t —↠ t′) → from (to (t—↠t′)) ≡ t—↠t′
+  from∘to (_ ∎)                = refl
+  from∘to (_ —→⟨ t—→u ⟩ u—↠t′) = cong (_ —→⟨ t—→u ⟩_) (from∘to u—↠t′)
 ```
 
 ## Confluence
@@ -928,7 +1009,40 @@ In the next chapter, we will see how to compute such reduction sequences.
 Write out the reduction sequence demonstrating that one plus one is two.
 
 ```agda
--- Your code goes here
+one : Term
+one = `suc `zero
+
+_ : plus · one · one —↠ `suc `suc `zero
+_ =
+  begin
+    plus · one · one
+  —→⟨ ξ-·₁ (ξ-·₁ β-μ) ⟩
+    (ƛ "m" ⇒ (ƛ "n" ⇒
+      case ` "m" [zero⇒ ` "n" |suc "m" ⇒ `suc (plus · ` "m" · ` "n") ]))
+    · one · one
+  —→⟨ ξ-·₁ (β-ƛ (V-suc V-zero)) ⟩
+    (ƛ "n" ⇒
+      case one [zero⇒ ` "n" |suc "m" ⇒ `suc (plus · ` "m" · ` "n") ])
+    · one
+  —→⟨ β-ƛ (V-suc V-zero) ⟩
+    case one [zero⇒ one |suc "m" ⇒ `suc (plus · ` "m" · one) ]
+  —→⟨ β-suc V-zero ⟩
+    `suc (plus · `zero  · one)
+  —→⟨ ξ-suc (ξ-·₁ (ξ-·₁ β-μ)) ⟩
+    `suc
+      ((ƛ "m" ⇒ (ƛ "n" ⇒
+        case ` "m" [zero⇒ ` "n" |suc "m" ⇒ `suc (plus · ` "m" · ` "n") ]))
+      · `zero · one)
+  —→⟨ ξ-suc (ξ-·₁ (β-ƛ V-zero)) ⟩
+    `suc
+      ((ƛ "n" ⇒
+         case `zero [zero⇒ ` "n" |suc "m" ⇒ `suc (plus · ` "m" · ` "n") ])
+       · one)
+  —→⟨ ξ-suc (β-ƛ (V-suc V-zero)) ⟩
+    `suc case `zero [zero⇒ one |suc "m" ⇒ `suc (plus · ` "m" · one) ]
+  —→⟨ ξ-suc β-zero ⟩
+    `suc `suc `zero
+  ∎
 ```
 
 
@@ -980,6 +1094,8 @@ Thus:
 
   Give more than one answer if appropriate.
 
+Option 2.
+
 * What is the type of the following term?
 
     `` (ƛ "s" ⇒ ` "s" · (` "s"  · `zero)) · sucᶜ ``
@@ -992,6 +1108,8 @@ Thus:
   6. `` `ℕ ``
 
   Give more than one answer if appropriate.
+
+Option 6.
 
 
 ## Typing
@@ -1036,7 +1154,35 @@ to the list
     [ ⟨ "z" , `ℕ ⟩ , ⟨ "s" , `ℕ ⇒ `ℕ ⟩ ]
 
 ```agda
--- Your code goes here
+open import Data.Product using (_,_)
+open import Relation.Binary.PropositionalEquality using (cong)
+open import plfa.part1.Isomorphism using (_≃_)
+
+Context-≃ : Context ≃ List (Id × Type)
+Context-≃ =
+  record
+    { to = to
+    ; from = from
+    ; from∘to = from∘to
+    ; to∘from = to∘from
+    }
+  where
+
+  to : Context → List (Id × Type)
+  to ∅           = []
+  to (Γ , x ⦂ T) = (x , T) ∷ to Γ
+
+  from : List (Id × Type) → Context
+  from []             = ∅
+  from ((x , T) ∷ xs) = from xs , x ⦂ T
+
+  from∘to : ∀ (Γ : Context) → from (to Γ) ≡ Γ
+  from∘to ∅           = refl
+  from∘to (Γ , x ⦂ T) = cong (_, x ⦂ T) (from∘to Γ)
+
+  to∘from : ∀ (xs : List (Id × Type)) → to (from xs) ≡ xs
+  to∘from []       = refl
+  to∘from (x ∷ xs) = cong (x ∷_) (to∘from xs)
 ```
 
 ### Lookup judgment
@@ -1379,11 +1525,18 @@ or explain why there is no such `A`.
 2. `` ∅ , "y" ⦂ `ℕ ⇒ `ℕ , "x" ⦂ `ℕ ⊢ ` "x" · ` "y" ⦂ A ``
 3. `` ∅ , "y" ⦂ `ℕ ⇒ `ℕ ⊢ ƛ "x" ⇒ ` "y" · ` "x" ⦂ A ``
 
+1. `ℕ
+2. Impossible, because ⊢ƛ requires that x have a function type.
+3. `ℕ ⇒ `ℕ
+
 For each of the following, give types `A`, `B`, and `C` for which it is derivable,
 or explain why there are no such types.
 
 1. `` ∅ , "x" ⦂ A ⊢ ` "x" · ` "x" ⦂ B ``
 2. `` ∅ , "x" ⦂ A , "y" ⦂ B ⊢ ƛ "z" ⇒ ` "x" · (` "y" · ` "z") ⦂ C ``
+
+1. We do not have recursive types.
+2. A = `ℕ ⇒ `ℕ, B = `ℕ ⇒ ℕ, C = `ℕ ⇒ `ℕ
 
 
 #### Exercise `⊢mul` (recommended)
@@ -1392,7 +1545,9 @@ Using the term `mul` you defined earlier, write out the derivation
 showing that it is well typed.
 
 ```agda
--- Your code goes here
+⊢mul : ∀ (Γ : Context) → Γ ⊢ mul ⦂ `ℕ ⇒ `ℕ ⇒ `ℕ
+⊢mul Γ =
+  ⊢μ (⊢ƛ (⊢ƛ (⊢case (⊢` (S (λ()) Z)) ⊢zero (⊢plus · ⊢` (S (λ()) Z) · (⊢` (S (λ()) (S (λ()) (S (λ()) Z))) · ⊢` Z · ⊢` (S (λ()) Z))))))
 ```
 
 
@@ -1402,7 +1557,9 @@ Using the term `mulᶜ` you defined earlier, write out the derivation
 showing that it is well typed.
 
 ```agda
--- Your code goes here
+⊢mulᶜ : ∀ (A : Type) (Γ : Context) → Γ ⊢ mulᶜ ⦂ Ch A ⇒ Ch A ⇒ Ch A
+⊢mulᶜ A Γ =
+  ⊢ƛ (⊢ƛ (⊢ƛ (⊢ƛ (⊢` (S (λ()) (S (λ()) (S (λ()) Z))) · (⊢` (S (λ()) (S (λ()) Z)) · ⊢` (S (λ()) Z)) · ⊢` Z))))
 ```
 
 

@@ -190,7 +190,11 @@ Using negation, show that
 is irreflexive, that is, `n < n` holds for no `n`.
 
 ```agda
--- Your code goes here
+open import Data.Nat using (_<_; s≤s)
+
+<-irreflexive : ∀ {n : ℕ}
+  → ¬ n < n
+<-irreflexive (s≤s x) = <-irreflexive x
 ```
 
 
@@ -208,7 +212,54 @@ Here "exactly one" means that not only one of the three must hold,
 but that when one holds the negation of the other two must also hold.
 
 ```agda
--- Your code goes here
+open import Data.Nat using (_>_; z≤n)
+open import Data.Product using (_,_)
+
+flip : ∀ {A B C : Set}
+  → (A → B → C)
+  → B → A → C
+flip f b a = f a b
+
+trichotomy-all : ∀ (m n : ℕ)
+  → m < n ⊎ m ≡ n ⊎ m > n
+trichotomy-all zero zero = inj₂ (inj₁ refl)
+trichotomy-all zero (suc n) = inj₁ (s≤s z≤n)
+trichotomy-all (suc m) zero = inj₂ (inj₂ (s≤s z≤n))
+trichotomy-all (suc m) (suc n)
+  with trichotomy-all m n
+... | inj₁ s-m≤n = inj₁ (s≤s s-m≤n)
+... | inj₂ (inj₁ m≡n) rewrite m≡n = inj₂ (inj₁ refl)
+... | inj₂ (inj₂ s-n≤m) = inj₂ (inj₂ (s≤s s-n≤m))
+
+trichotomy-<-≢ : ∀ {m n : ℕ}
+  → m < n
+  → m ≢ n
+trichotomy-<-≢ m<n refl = <-irreflexive m<n
+
+trichotomy-≡-≮ : ∀ {m n : ℕ}
+  → m ≡ n
+  → ¬ m < n
+trichotomy-≡-≮ = flip trichotomy-<-≢
+
+trichotomy-<-≯ : ∀ {m n : ℕ}
+  → m < n
+  → ¬ m > n
+trichotomy-<-≯ (s≤s m<n) (s≤s m>n) = trichotomy-<-≯ m<n m>n
+
+trichotomy->-≮ : ∀ {m n : ℕ}
+  → m > n
+  → ¬ m < n
+trichotomy->-≮ = flip trichotomy-<-≯
+
+trichotomy-≡-≯ : ∀ {m n : ℕ}
+  → m ≡ n
+  → ¬ m > n
+trichotomy-≡-≯ refl (s≤s m>n) = trichotomy-≡-≯ refl m>n
+
+trichotomy->-≢ : ∀ {m n : ℕ}
+  → m > n
+  → m ≢ n
+trichotomy->-≢ = flip trichotomy-≡-≯
 ```
 
 #### Exercise `⊎-dual-×` (recommended)
@@ -221,7 +272,21 @@ version of De Morgan's Law.
 This result is an easy consequence of something we've proved previously.
 
 ```agda
--- Your code goes here
+⊎-dual-× : ∀ {A B : Set}
+  → ¬ (A ⊎ B) ≃ (¬ A) × (¬ B)
+⊎-dual-× =
+  record
+    { to =
+      λ x → (λ y → x (inj₁ y)) , (λ y → x (inj₂ y))
+    ; from =
+      λ{ (x , y) (inj₁ z) → x z
+       ; (x , y) (inj₂ z) → y z
+       }
+    ; from∘to =
+      λ x →
+        extensionality (λ y → ⊥-elim (x y))
+    ; to∘from = λ _ → refl
+    }
 ```
 
 
@@ -231,6 +296,42 @@ Do we also have the following?
 
 If so, prove; if not, can you give a relation weaker than
 isomorphism that relates the two sides?
+
+```agda
+open import Data.Bool using (Bool)
+open import Data.Unit using (⊤)
+open import Data.Product using (proj₁; proj₂)
+import Relation.Binary.PropositionalEquality as Eq
+open Eq.≡-Reasoning
+open import plfa.part1.Isomorphism using (_⇔_; _≲_)
+
+counter : ¬ (¬ (⊥ × ⊥) ≃ ¬ ⊥ ⊎ ¬ ⊥)
+counter x = absurd h
+  where
+    from-≡-from : _≃_.from x (inj₁ ⊥-elim) ≡ _≃_.from x (inj₂ ⊥-elim)
+    from-≡-from = assimilation (_≃_.from x (inj₁ ⊥-elim)) (_≃_.from x (inj₂ ⊥-elim))
+
+    h : inj₁ ⊥-elim ≡ inj₂ ⊥-elim
+    h =
+      begin
+        inj₁ ⊥-elim
+      ≡⟨ Eq.sym (_≃_.to∘from x (inj₁ ⊥-elim)) ⟩
+        _≃_.to x (_≃_.from x (inj₁ ⊥-elim))
+      ≡⟨ Eq.cong (_≃_.to x) from-≡-from ⟩
+        _≃_.to x (_≃_.from x (inj₂ ⊥-elim))
+      ≡⟨ _≃_.to∘from x (inj₂ ⊥-elim) ⟩
+        inj₂ ⊥-elim
+      ∎
+
+    absurd : inj₁ ⊥-elim ≢ inj₂ ⊥-elim
+    absurd ()
+
+weaker : ∀ (A B : Set)
+  → ¬ A ⊎ ¬ B
+  → ¬ (A × B)
+weaker A B (inj₁ x) (y , _) = x y
+weaker A B (inj₂ x) (_ , y) = x y
+```
 
 
 ## Intuitive and Classical logic
@@ -378,7 +479,69 @@ Consider the following principles:
 Show that each of these implies all the others.
 
 ```agda
--- Your code goes here
+em′ : Set₁
+em′ = ∀ (A : Set) → A ⊎ ¬ A
+
+dne : Set₁
+dne = ∀ {A : Set} → ¬ ¬ A → A
+
+peirce : Set₁
+peirce = ∀ {A B : Set} → ((A → B) → A) → A
+
+→-as-⊎ : Set₁
+→-as-⊎ = ∀ {A B : Set} → (A → B) → ¬ A ⊎ B
+
+de-morgan : Set₁
+de-morgan = ∀ {A B : Set} → ¬ (¬ A × ¬ B) → A ⊎ B
+
+em-implies-dne : em′ → dne
+em-implies-dne em {A} H
+  with em A
+...  | inj₁ x = x
+...  | inj₂ x = ⊥-elim (H x)
+
+dne-implies-em : dne → em′
+dne-implies-em dne A = dne em-irrefutable
+
+em-implies-peirce : em′ → peirce
+em-implies-peirce em {A} {B} f
+  with em A      | em B
+...  | _         | (inj₁ b) = f (λ _ → b)
+...  | (inj₁ a)  | (inj₂ b) = a
+...  | (inj₂ ¬A) | (inj₂ b) = f (λ a → ⊥-elim (¬A a))
+
+peirce-implies-dne : peirce → dne
+peirce-implies-dne peirce {A} ¬¬A =
+  peirce {A} {⊥} (λ ¬A → ⊥-elim (¬¬A ¬A))
+
+peirce-implies-em : peirce → em′
+peirce-implies-em peirce =
+  dne-implies-em (peirce-implies-dne peirce)
+
+em-implies-→-as-⊎ : em′ → →-as-⊎
+em-implies-→-as-⊎ em {A} A→B
+  with em A
+...  | (inj₁ a)  = inj₂ (A→B a)
+...  | (inj₂ ¬A) = inj₁ ¬A
+
+⊎-sym : ∀ {A B : Set} → A ⊎ B → B ⊎ A
+⊎-sym (inj₁ a) = inj₂ a
+⊎-sym (inj₂ b) = inj₁ b
+
+→-as-⊎-implies-em : →-as-⊎ → em′
+→-as-⊎-implies-em →-as-⊎ A =
+  ⊎-sym (→-as-⊎ {A} {A} (λ a → a))
+
+em-implies-de-morgan : em′ → de-morgan
+em-implies-de-morgan em {A} {B} ¬-¬A×¬B
+  with em A      | em B
+...  | (inj₁ a)  | _         = inj₁ a
+...  | (inj₂ ¬A) | (inj₁ b)  = inj₂ b
+...  | (inj₂ ¬A) | (inj₂ ¬B) = ⊥-elim (¬-¬A×¬B (¬A , ¬B))
+
+de-morgan-implies-em : de-morgan → em′
+de-morgan-implies-em de-morgan A =
+  de-morgan (λ{ (¬A , ¬¬A) → ¬¬A ¬A })
 ```
 
 
@@ -393,7 +556,16 @@ Show that any negated formula is stable, and that the conjunction
 of two stable formulas is stable.
 
 ```agda
--- Your code goes here
+¬-is-Stable : ∀ {A : Set} → Stable (¬ A)
+¬-is-Stable ¬¬¬A A = ¬¬¬A (λ ¬A → ¬A A)
+
+Stable-×-Stable-is-Stable : ∀ {A B : Set}
+  → Stable A
+  → Stable B
+  → Stable (A × B)
+Stable-×-Stable-is-Stable StableA StableB ¬-A×B =
+    StableA (λ ¬A → ¬-A×B (λ (a , _) → ¬A a))
+  , StableB (λ ¬B → ¬-A×B (λ (_ , b) → ¬B b))
 ```
 
 ## Standard Prelude

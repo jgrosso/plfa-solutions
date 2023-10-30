@@ -271,7 +271,8 @@ Sadly, we cannot use the definition of trans' using ≡-Reasoning as the definit
 for trans. Can you see why? (Hint: look at the definition of `_≡⟨_⟩_`)
 
 ```agda
--- Your code goes here
+-- There would be an infinite cycle: `trans′` is defined in terms of `_≡⟨_⟩_`,
+-- which itself is defined in terms of `trans`—which is `trans′` in our hypothetical.
 ```
 
 ## Chains of equations, another example
@@ -359,7 +360,90 @@ it to write out an alternative proof that addition is monotonic with
 regard to inequality.  Rewrite all of `+-monoˡ-≤`, `+-monoʳ-≤`, and `+-mono-≤`.
 
 ```agda
--- Your code goes here
+infix 4 _≤_
+
+data _≤_ : ℕ → ℕ → Set where
+
+  z≤n : ∀ {n : ℕ}
+      --------
+    → zero ≤ n
+
+  s≤s : ∀ {m n : ℕ}
+    → m ≤ n
+      -------------
+    → suc m ≤ suc n
+
+≤-refl : ∀ {n : ℕ}
+    -----
+  → n ≤ n
+≤-refl {zero} = z≤n
+≤-refl {suc n} = s≤s ≤-refl
+
+≤-trans : ∀ {m n p : ℕ}
+  → m ≤ n
+  → n ≤ p
+    -----
+  → m ≤ p
+≤-trans z≤n       _          =  z≤n
+≤-trans (s≤s m≤n) (s≤s n≤p)  =  s≤s (≤-trans m≤n n≤p)
+
++-monoʳ-≤ : ∀ (n p q : ℕ)
+  → p ≤ q
+    -------------
+  → n + p ≤ n + q
++-monoʳ-≤ zero    p q p≤q  =  p≤q
++-monoʳ-≤ (suc n) p q p≤q  =  s≤s (+-monoʳ-≤ n p q p≤q)
+
++-monoˡ-≤ : ∀ (m n p : ℕ)
+  → m ≤ n
+    -------------
+  → m + p ≤ n + p
++-monoˡ-≤ m n p m≤n =
+  subst (m + p ≤_) (+-comm p n)
+    (subst (_≤ p + n) (+-comm p m)
+      (+-monoʳ-≤ p m n m≤n))
+
+module ≤-Reasoning where
+
+  infix  1 ≤begin_
+  infixr 2 _≤⟨⟩_ _≤⟨_⟩_
+  infix  3 _≤∎
+
+  ≤begin_ : ∀ {m n : ℕ}
+    → m ≤ n
+    → m ≤ n
+  ≤begin m≤n = m≤n
+
+  _≤⟨⟩_ : ∀ (m : ℕ) {n : ℕ}
+    → m ≤ n
+    → m ≤ n
+  _ ≤⟨⟩ m≤n = m≤n
+
+  _≤⟨_⟩_ : ∀ (m : ℕ) {n p : ℕ}
+    → m ≤ n
+    → n ≤ p
+    → m ≤ p
+  _ ≤⟨ m≤n ⟩ n≤p = ≤-trans m≤n n≤p
+
+  _≤∎ : ∀ (n : ℕ)
+    → n ≤ n
+  _ ≤∎ = ≤-refl
+
+open ≤-Reasoning
+
++-mono-≤ : ∀ (m n p q : ℕ)
+  → m ≤ n
+  → p ≤ q
+    -------------
+  → m + p ≤ n + q
++-mono-≤ m n p q m≤n p≤q =
+  ≤begin
+    m + p
+  ≤⟨ +-monoˡ-≤ m n p m≤n ⟩
+    (n + p)
+  ≤⟨ +-monoʳ-≤ n p q p≤q ⟩
+    n + q
+  ≤∎
 ```
 
 

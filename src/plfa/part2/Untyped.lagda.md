@@ -101,7 +101,16 @@ data Type : Set where
 Show that `Type` is isomorphic to `⊤`, the unit type.
 
 ```agda
--- Your code goes here
+open import plfa.part1.Isomorphism using (_≃_)
+
+Type-≃-⊤ : Type ≃ ⊤
+Type-≃-⊤ =
+  record
+    { to      = λ{ ★  → tt   }
+    ; from    = λ{ tt → ★    }
+    ; from∘to = λ{ ★  → refl }
+    ; to∘from = λ{ tt → refl }
+    }
 ```
 
 ## Contexts
@@ -120,7 +129,30 @@ We let `Γ` and `Δ` range over contexts.
 Show that `Context` is isomorphic to `ℕ`.
 
 ```agda
--- Your code goes here
+Context-≃-ℕ : Context ≃ ℕ
+Context-≃-ℕ =
+  record
+    { to      = to
+    ; from    = from
+    ; from∘to = from∘to
+    ; to∘from = to∘from
+    }
+  where
+    to : Context → ℕ
+    to ∅       = zero
+    to (Γ , ★) = suc (to Γ)
+
+    from : ℕ → Context
+    from zero    = ∅
+    from (suc n) = from n , ★
+
+    from∘to : (Γ : Context) → from (to Γ) ≡ Γ
+    from∘to ∅                         = refl
+    from∘to (Γ , ★) rewrite from∘to Γ = refl
+
+    to∘from : (n : ℕ) → to (from n) ≡ n
+    to∘from zero                      = refl
+    to∘from (suc n) rewrite to∘from n = refl
 ```
 
 ## Variables and the lookup judgment
@@ -397,7 +429,26 @@ normalise completely?  Assume that `β` should not permit reduction
 unless both terms are in normal form.
 
 ```agda
--- Your code goes here
+infix 2 _⟶₁_
+
+data _⟶₁_ : ∀ {Γ A} → (Γ ⊢ A) → (Γ ⊢ A) → Set where
+
+  ξ₁ : ∀ {Γ} {L L′ M : Γ ⊢ ★}
+    → L     ⟶₁ L′
+    → L · M ⟶₁ L′ · M
+
+  ξ₂ : ∀ {Γ} {L M M′ : Γ ⊢ ★}
+    →     M ⟶₁     M′
+    → L · M ⟶₁ L · M′
+
+  β : ∀ {Γ} {N : Γ , ★ ⊢ ★} {M : Γ ⊢ ★}
+    → Normal N
+    → Normal M
+    → (ƛ N) · M ⟶₁ N [ M ]
+
+  ζ : ∀ {Γ} {N N′ : Γ , ★ ⊢ ★}
+    →   N ⟶₁   N′
+    → ƛ N ⟶₁ ƛ N′
 ```
 
 #### Exercise (`variant-2`) (practice)
@@ -408,7 +459,51 @@ permits reduction when both terms are values (that is, lambda
 abstractions).  What would `2+2ᶜ` reduce to in this case?
 
 ```agda
--- Your code goes here
+infix 2 _⟶₂_
+
+data _⟶₂_ : ∀ {Γ A} → (Γ ⊢ A) → (Γ ⊢ A) → Set where
+
+  ξ₁ : ∀ {Γ} {L L′ M : Γ ⊢ ★}
+    → L     ⟶₂ L′
+    → L · M ⟶₂ L′ · M
+
+  ξ₂ : ∀ {Γ} {L M M′ : Γ ⊢ ★}
+    →     M ⟶₂     M′
+    → L · M ⟶₂ L · M′
+
+  β : ∀ {Γ} {N : Γ , ★ ⊢ ★} {M : Γ , ★ ⊢ ★}
+    → (ƛ N) · (ƛ M) ⟶₂ N [ ƛ M ]
+
+_ : 2+2ᶜ ≡ (ƛ ƛ ƛ ƛ (# 3 · # 1 · (# 2 · # 1 · # 0))) · (ƛ ƛ (# 1 · (# 1 · # 0))) · (ƛ ƛ (# 1 · (# 1 · # 0)))
+_ = refl
+
+_ : ∀ {Γ}
+  → _⟶₂_ {Γ}
+    ((ƛ ƛ ƛ ƛ (# 3 · # 1 · (# 2 · # 1 · # 0))) · (ƛ ƛ (# 1 · (# 1 · # 0))) · (ƛ ƛ (# 1 · (# 1 · # 0))))
+    ((ƛ ƛ ƛ ((ƛ ƛ (# 1 · (# 1 · # 0))) · # 1 · (# 2 · # 1 · # 0))) · (ƛ ƛ (# 1 · (# 1 · # 0))))
+_ = ξ₁ β
+
+_ : ∀ {Γ}
+  → _⟶₂_ {Γ}
+    ((ƛ ƛ ƛ ((ƛ ƛ (# 1 · (# 1 · # 0))) · # 1 · (# 2 · # 1 · # 0))) · (ƛ ƛ (# 1 · (# 1 · # 0))))
+    (ƛ ƛ ((ƛ ƛ (# 1 · (# 1 · # 0))) · # 1 · ((ƛ ƛ (# 1 · (# 1 · # 0))) · # 1 · # 0)))
+_ = β
+
+_ : ∀ {Γ}
+  → _⟶₂_ {Γ}
+    ((ƛ ƛ ƛ ((ƛ ƛ (# 1 · (# 1 · # 0))) · # 1 · (# 2 · # 1 · # 0))) · (ƛ ƛ (# 1 · (# 1 · # 0))))
+    (ƛ ƛ ((ƛ ƛ (# 1 · (# 1 · # 0))) · # 1 · ((ƛ ƛ (# 1 · (# 1 · # 0))) · # 1 · # 0)))
+_ = β
+
+_ :
+  _≡_ {A = ∅ ⊢ ★}
+    (ƛ (ƛ ((ƛ ƛ (# 1 · (# 1 · # 0))) · # 1 · ((ƛ ƛ (# 1 · (# 1 · # 0))) · # 1 · # 0))))
+    (ƛ ƛ (twoᶜ · # 1 · (twoᶜ · # 1 · # 0)))
+_ = refl
+
+_ : ∀ {Γ} (M : Γ ⊢ ★)
+  → ¬ ((ƛ ƛ (twoᶜ · # 1 · (twoᶜ · # 1 · # 0))) ⟶₂ M)
+_ = λ M ()
 ```
 
 
@@ -749,7 +844,16 @@ Use the evaluator to confirm that `plus · two · two` and `four`
 normalise to the same term.
 
 ```agda
--- Your code goes here
+normalise-to-the-same-term : ∀ {Γ A} → Gas → (M N : Γ ⊢ A) → Set
+normalise-to-the-same-term g L M
+  with eval g L                   | eval g M
+...  | steps         _ out-of-gas | _                          = ⊥
+...  | steps         _ (done _)   | steps         _ out-of-gas = ⊥
+...  | steps {N = L} _ (done _)   | steps {N = M} _ (done _)   = L ≡ M
+
+plus·two·two≡four : ∀ {Γ}
+  → normalise-to-the-same-term {Γ} (gas 100) (plus · two · two) four
+plus·two·two≡four = refl
 ```
 
 #### Exercise `multiplication-untyped` (recommended)
@@ -760,7 +864,12 @@ representation and the encoding of the fixpoint operator.
 Confirm that two times two is four.
 
 ```agda
--- Your code goes here
+mul : ∀ {Γ} → Γ ⊢ ★
+mul = μ ƛ ƛ case (# 1) `zero (plus · (# 1) · (# 3 · # 0 · # 1))
+
+mul·two·two≡four : ∀ {Γ}
+  → normalise-to-the-same-term {Γ} (gas 100) (mul · two · two) four
+mul·two·two≡four = refl
 ```
 
 #### Exercise `encode-more` (stretch)

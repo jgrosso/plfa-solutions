@@ -238,7 +238,17 @@ Show that `A ⇔ B` as defined [earlier](/Isomorphism/#iff)
 is isomorphic to `(A → B) × (B → A)`.
 
 ```agda
--- Your code goes here
+open import plfa.part1.Isomorphism using (_⇔_)
+
+⇔≃× : ∀ {A B : Set}
+  → (A ⇔ B) ≃ (A → B) × (B → A)
+⇔≃× =
+  record
+    { to = λ{ x → ⟨ _⇔_.to x , _⇔_.from x ⟩ }
+    ; from = λ{ ⟨ x , y ⟩ → record { to = λ a → x a ; from = λ b → y b } }
+    ; from∘to = λ _ → refl
+    ; to∘from = λ{ ⟨ x , y ⟩ → refl }
+    }
 ```
 
 
@@ -451,7 +461,27 @@ commutative and associative _up to isomorphism_.
 Show sum is commutative up to isomorphism.
 
 ```agda
--- Your code goes here
+⊎-comm : ∀ {A B : Set}
+  → A ⊎ B ≃ B ⊎ A
+⊎-comm =
+  record
+    { to =
+      λ{ (inj₁ x) → inj₂ x
+       ; (inj₂ x) → inj₁ x
+       }
+    ; from =
+      λ { (inj₁ x) → inj₂ x
+        ; (inj₂ x) → inj₁ x
+        }
+    ; from∘to =
+      λ{ (inj₁ x) → refl
+       ; (inj₂ x) → refl
+       }
+    ; to∘from =
+      λ{ (inj₁ x) → refl
+       ; (inj₂ x) → refl
+       }
+    }
 ```
 
 #### Exercise `⊎-assoc` (practice)
@@ -459,7 +489,31 @@ Show sum is commutative up to isomorphism.
 Show sum is associative up to isomorphism.
 
 ```agda
--- Your code goes here
+⊎-assoc : ∀ {A B C : Set}
+  → (A ⊎ B) ⊎ C ≃ A ⊎ (B ⊎ C)
+⊎-assoc =
+  record
+    { to =
+      λ{ (inj₁ (inj₁ x)) → inj₁ x
+       ; (inj₁ (inj₂ x)) → inj₂ (inj₁ x)
+       ; (inj₂ x) → inj₂ (inj₂ x)
+       }
+    ; from =
+      λ{ (inj₁ x) → inj₁ (inj₁ x)
+       ; (inj₂ (inj₁ x)) → inj₁ (inj₂ x)
+       ; (inj₂ (inj₂ x)) → inj₂ x
+       }
+    ; from∘to =
+      λ{ (inj₁ (inj₁ x)) → refl
+       ; (inj₁ (inj₂ x)) → refl
+       ; (inj₂ x) → refl
+       }
+    ; to∘from =
+      λ{ (inj₁ x) → refl
+       ; (inj₂ (inj₁ x)) → refl
+       ; (inj₂ (inj₂ x)) → refl
+       }
+    }
 ```
 
 ## False is empty
@@ -522,7 +576,21 @@ is the identity of sums _up to isomorphism_.
 Show empty is the left identity of sums up to isomorphism.
 
 ```agda
--- Your code goes here
+⊥-identityˡ : ∀ (A : Set)
+  → ⊥ ⊎ A ≃ A
+⊥-identityˡ A =
+  record
+    { to =
+      λ{ (inj₁ ())
+       ; (inj₂ x) → x
+       }
+    ; from = inj₂
+    ; from∘to =
+      λ{ (inj₁ ())
+       ; (inj₂ x) → refl
+       }
+    ; to∘from = λ _ → refl
+    }
 ```
 
 #### Exercise `⊥-identityʳ` (practice)
@@ -530,7 +598,21 @@ Show empty is the left identity of sums up to isomorphism.
 Show empty is the right identity of sums up to isomorphism.
 
 ```agda
--- Your code goes here
+⊥-identityʳ : ∀ (A : Set)
+  → A ⊎ ⊥ ≃ A
+⊥-identityʳ A =
+  record
+    { to =
+      λ{ (inj₁ x) → x
+       ; (inj₂ ())
+       }
+    ; from = inj₁
+    ; from∘to =
+      λ{ (inj₁ x) → refl
+       ; (inj₂ ())
+       }
+    ; to∘from = λ _ → refl
+    }
 ```
 
 ## Implication is function {#implication}
@@ -754,28 +836,38 @@ one of these laws is "more true" than the other.
 
 Show that the following property holds:
 ```agda
-postulate
-  ⊎-weak-× : ∀ {A B C : Set} → (A ⊎ B) × C → A ⊎ (B × C)
+⊎-weak-× : ∀ {A B C : Set} → (A ⊎ B) × C → A ⊎ (B × C)
 ```
 This is called a _weak distributive law_. Give the corresponding
 distributive law, and explain how it relates to the weak version.
 
 ```agda
--- Your code goes here
+⊎-weak-× ⟨ inj₁ x , y ⟩ = inj₁ x
+⊎-weak-× ⟨ inj₂ x , y ⟩ = inj₂ ⟨ x , y ⟩
 ```
+
+The corresponding distributive law is `×-distrib-⊎`. The distributive law implies the weak distributive law, but not the other way around.
 
 
 #### Exercise `⊎×-implies-×⊎` (practice)
 
 Show that a disjunct of conjuncts implies a conjunct of disjuncts:
 ```agda
-postulate
-  ⊎×-implies-×⊎ : ∀ {A B C D : Set} → (A × B) ⊎ (C × D) → (A ⊎ C) × (B ⊎ D)
+⊎×-implies-×⊎ : ∀ {A B C D : Set} → (A × B) ⊎ (C × D) → (A ⊎ C) × (B ⊎ D)
 ```
 Does the converse hold? If so, prove; if not, give a counterexample.
 
 ```agda
--- Your code goes here
+⊎×-implies-×⊎ (inj₁ ⟨ x , y ⟩) = ⟨ inj₁ x , inj₁ y ⟩
+⊎×-implies-×⊎ (inj₂ ⟨ x , y ⟩) = ⟨ inj₂ x , inj₂ y ⟩
+
+-- The converse does not hold:
+_ : ((⊤ ⊎ ⊥) × (⊥ ⊎ ⊤) → (⊤ × ⊥) ⊎ (⊥ × ⊤)) → ⊥
+_ = λ f → g (f ⟨ inj₁ tt , inj₂ tt ⟩)
+  where
+    g : (⊤ × ⊥) ⊎ (⊥ × ⊤) → ⊥
+    g (inj₁ ⟨ _ , () ⟩)
+    g (inj₂ ⟨ (), _ ⟩)
 ```
 
 

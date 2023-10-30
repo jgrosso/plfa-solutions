@@ -177,7 +177,128 @@ to use a decidable predicate to pick out terms in the domain of `_†`, using
 [proof by reflection](/Decidable/#proof-by-reflection).
 
 ```agda
--- Your code goes here
+import Relation.Binary.PropositionalEquality as Eq
+open Eq using (_≡_; refl)
+open import Relation.Nullary using (Dec; no; yes)
+open import Relation.Nullary.Decidable.Core using (fromWitness; toWitness; True)
+
+data in-dom-† : ∀ {Γ A} → Γ ⊢ A → Set where
+  in-dom-†-` : ∀ {Γ A}
+      (x : A ∋ Γ)
+    → in-dom-† (` x)
+  in-dom-†-ƛ : ∀ {Γ A B} {M : Γ , B ⊢ A}
+    → in-dom-† M
+    → in-dom-† (ƛ M)
+  in-dom-†-· : ∀ {Γ A B} {L : Γ ⊢ A ⇒ B} {M : Γ ⊢ A}
+    → in-dom-† L
+    → in-dom-† M
+    → in-dom-† (L · M)
+  in-dom-†-`let : ∀ {Γ A B} {L : Γ ⊢ B} {M : Γ , B ⊢ A}
+    → in-dom-† L
+    → in-dom-† M
+    → in-dom-† (`let L M)
+
+in-dom-†? : ∀ {Γ A} (M : Γ ⊢ A) → Dec (in-dom-† M)
+in-dom-†? (` x) = yes (in-dom-†-` x)
+in-dom-†? (ƛ M)
+  with in-dom-†? M
+...  | yes M-∈-dom =
+       yes (in-dom-†-ƛ M-∈-dom)
+...  | no  M-∉-dom =
+       no λ{ (in-dom-†-ƛ M-∈-dom) → M-∉-dom M-∈-dom }
+in-dom-†? (L · M)
+  with in-dom-†? L | in-dom-†? M
+...  | yes L-∈-dom | yes M-∈-dom =
+       yes (in-dom-†-· L-∈-dom M-∈-dom)
+...  | no  L-∉-dom | _           =
+       no λ{ (in-dom-†-· L-∈-dom M-∈-dom) → L-∉-dom L-∈-dom }
+...  | _           | no  M-∉-dom =
+       no λ{ (in-dom-†-· L-∈-dom M-∈-dom) → M-∉-dom M-∈-dom }
+in-dom-†? `zero = no λ ()
+in-dom-†? (`suc _) = no λ ()
+in-dom-†? (case _ _ _) = no λ ()
+in-dom-†? (μ _) = no λ ()
+in-dom-†? (con _) = no λ ()
+in-dom-†? (_ `* _) = no λ ()
+in-dom-†? (`let L M)
+  with in-dom-†? L | in-dom-†? M
+...  | yes L-∈-dom | yes M-∈-dom =
+       yes (in-dom-†-`let L-∈-dom M-∈-dom)
+...  | no  L-∉-dom | _           =
+       no λ{ (in-dom-†-`let L-∈-dom M-∈-dom) → L-∉-dom L-∈-dom }
+...  | _           | no  M-∉-dom =
+       no λ{ (in-dom-†-`let L-∈-dom M-∈-dom) → M-∉-dom M-∈-dom }
+in-dom-†? `⟨ _ , _ ⟩ = no λ ()
+in-dom-†? (`proj₁ _) = no λ ()
+in-dom-†? (`proj₂ _) = no λ ()
+in-dom-†? (case× _ _) = no λ ()
+in-dom-†? (`inj₁ _) = no λ ()
+in-dom-†? (`inj₂ _) = no λ ()
+in-dom-†? (case⊎ _ _ _) = no λ ()
+in-dom-†? `tt = no λ ()
+in-dom-†? (case⊤ _ _) = no λ ()
+in-dom-†? (case⊥ _) = no λ ()
+in-dom-†? `[] = no λ ()
+in-dom-†? (_ `∷ _) = no λ ()
+in-dom-†? (caseL _ _ _) = no λ ()
+
+_† : ∀ {Γ A}
+    (M : Γ ⊢ A)
+    {M-in-dom-† : True (in-dom-†? M)}
+  → Γ ⊢ A
+(` x) † = ` x
+((ƛ M) †) {ƛ-∈-dom}
+  with toWitness ƛ-∈-dom
+...  | in-dom-†-ƛ M-∈-dom =
+       ƛ ((M †) {fromWitness M-∈-dom})
+((L · M) †) {·-∈-dom}
+  with toWitness ·-∈-dom
+...  | in-dom-†-· L-∈-dom M-∈-dom =
+       ((L †) {fromWitness L-∈-dom}) · ((M †) {fromWitness M-∈-dom})
+(`let L M †) {`let-∈-dom}
+  with toWitness `let-∈-dom
+...  | in-dom-†-`let L-∈-dom M-∈-dom =
+       (ƛ ((M †) {fromWitness M-∈-dom})) · ((L †) {fromWitness L-∈-dom})
+
+~† : ∀ {Γ A}
+    (M : Γ ⊢ A)
+    {M-∈-dom-† : True (in-dom-†? M)}
+  → M ~ ((M †) {M-∈-dom-†})
+~† (` x) = ~`
+~† (ƛ M) {ƛ-∈-dom}
+  with toWitness ƛ-∈-dom
+...  | in-dom-†-ƛ M-∈-dom =
+       ~ƛ (~† M)
+~† (L · M) {·-∈-dom}
+  with toWitness ·-∈-dom
+...  | in-dom-†-· L-∈-dom M-∈-dom =
+       (~† L) ~· (~† M)
+~† (`let L M) {`let-∈-dom}
+  with toWitness `let-∈-dom
+...  | in-dom-†-`let L-∈-dom M-∈-dom =
+       ~let (~† L) (~† M)
+
+~⇒†≡ : ∀ {Γ A}
+    {M : Γ ⊢ A}
+    {M-∈-dom-† : True (in-dom-†? M)}
+    {N : Γ ⊢ A}
+  → M ~ N
+  → ((M †) {M-∈-dom-†}) ≡ N
+~⇒†≡ ~` = refl
+~⇒†≡ {M-∈-dom-† = M-∈-dom} (~ƛ M~N)
+  with toWitness M-∈-dom
+...  | in-dom-†-ƛ N-∈-dom =
+       Eq.cong ƛ_ (~⇒†≡ M~N)
+~⇒†≡ {M-∈-dom-† = ·-∈-dom} (L~L† ~· M~M†)
+  with toWitness ·-∈-dom
+...  | in-dom-†-· L-∈-dom M-∈-dom =
+       Eq.cong₂ _·_ (~⇒†≡ L~L†) (~⇒†≡ M~M†)
+~⇒†≡ {M-∈-dom-† = `let-∈-dom} (~let L~L† M~M†)
+  with toWitness `let-∈-dom
+...  | in-dom-†-`let L-∈-dom M-∈-dom =
+       Eq.cong₂ _·_
+         (Eq.cong ƛ_ (~⇒†≡ M~M†))
+         (~⇒†≡ L~L†)
 ```
 
 
@@ -206,7 +327,12 @@ Show that this also holds in the reverse direction: if `M ~ M†`
 and `Value M†` then `Value M`.
 
 ```agda
--- Your code goes here
+~val⁻¹ : ∀ {Γ A}
+    {M M† : Γ ⊢ A}
+  → M ~ M†
+  → Value M†
+  → Value M
+~val⁻¹ (~ƛ ~M) V-ƛ = V-ƛ
 ```
 
 
@@ -464,7 +590,33 @@ Show that we also have a simulation in the other direction, and hence that we ha
 a bisimulation.
 
 ```agda
--- Your code goes here
+data Leg⁻¹ {Γ A} (M N† : Γ ⊢ A) : Set where
+  leg⁻¹ : ∀ {N : Γ ⊢ A}
+    → N ~ N†
+    → M —→ N
+    → Leg⁻¹ M N†
+
+sim⁻¹ : ∀ {Γ A}
+    {M M† N† : Γ ⊢ A}
+  → M ~ M†
+  → M† —→ N†
+  → Leg⁻¹ M N†
+sim⁻¹ (~L ~· ~M) (ξ-·₁ L†—→)
+  with sim⁻¹ ~L L†—→
+... | leg⁻¹ N~L′ L—→N =
+      leg⁻¹ (N~L′ ~· ~M) (ξ-·₁ L—→N)
+sim⁻¹ (~L ~· ~M) (ξ-·₂ V-L† M†—→)
+  with sim⁻¹ ~M M†—→
+...  | leg⁻¹ N~M′ M—→N =
+       leg⁻¹ (~L ~· N~M′) (ξ-·₂ (~val⁻¹ ~L V-L†) M—→N)
+sim⁻¹ ((~ƛ ~L) ~· ~M) (β-ƛ V-M†) =
+  leg⁻¹ (~sub ~L ~M) (β-ƛ (~val⁻¹ ~M V-M†))
+sim⁻¹ (~let ~L ~M) (ξ-·₂ V-ƛ L†—→)
+  with sim⁻¹ ~L L†—→
+... | leg⁻¹ ~N M—→ =
+      leg⁻¹ (~let ~N ~M) (ξ-let M—→)
+sim⁻¹ (~let ~L ~M) (β-ƛ V-L) =
+  leg⁻¹ (~sub ~M ~L) (β-let (~val⁻¹ ~L V-L))
 ```
 
 #### Exercise `products` (practice)
@@ -476,7 +628,443 @@ variables, and those connected to functions and products.
 In this case, the simulation is _not_ lock-step.
 
 ```agda
--- Your code goes here
+infix 4 _~′_
+infix 5 ~′ƛ_
+infix 7 _~′·_
+
+data _~′_ : ∀ {Γ A} → (Γ ⊢ A) → (Γ ⊢ A) → Set where
+
+  ~′` : ∀ {Γ A} {x : Γ ∋ A}
+    → ` x ~′ ` x
+
+  ~′ƛ_ : ∀ {Γ A B} {N N† : Γ , A ⊢ B}
+    → N ~′ N†
+    → ƛ N ~′ ƛ N†
+
+  _~′·_ : ∀ {Γ A B} {L L† : Γ ⊢ A ⇒ B} {M M† : Γ ⊢ A}
+    → L ~′ L†
+    → M ~′ M†
+    → L · M ~′ L† · M†
+
+  ~′`⟨_,_⟩ : ∀ {Γ A B} {L L† : Γ ⊢ A} {M M† : Γ ⊢ B}
+    → L ~′ L†
+    → M ~′ M†
+    → `⟨ L , M ⟩ ~′ `⟨ L† , M† ⟩
+
+  ~′`proj₁ : ∀ {Γ A B} {M M† : Γ ⊢ A `× B}
+    → M ~′ M†
+    → `proj₁ M ~′ case× M† (# 1)
+
+  ~′`proj₂ : ∀ {Γ A B} {M M† : Γ ⊢ A `× B}
+    → M ~′ M†
+    → `proj₂ M ~′ case× M† (# 0)
+
+
+infix 5 in-dom-†′-ƛ_
+infix 7 _in-dom-†′-·_
+
+data in-dom-†′ : ∀ {Γ A} → Γ ⊢ A → Set where
+
+  in-dom-†′-` : ∀ {Γ A}
+      (x : A ∋ Γ)
+    → in-dom-†′ (` x)
+
+  in-dom-†′-ƛ_ : ∀ {Γ A B} {M : Γ , B ⊢ A}
+    → in-dom-†′ M
+    → in-dom-†′ (ƛ M)
+
+  _in-dom-†′-·_ : ∀ {Γ A B} {L : Γ ⊢ A ⇒ B} {M : Γ ⊢ A}
+    → in-dom-†′ L
+    → in-dom-†′ M
+    → in-dom-†′ (L · M)
+
+  in-dom-†′-`⟨_,_⟩ : ∀ {Γ A B} {L : Γ ⊢ A} {M : Γ ⊢ B}
+    → in-dom-†′ L
+    → in-dom-†′ M
+    → in-dom-†′ `⟨ L , M ⟩
+
+  in-dom-†′-`proj₁ : ∀ {Γ A B} {M : Γ ⊢ A `× B}
+    → in-dom-†′ M
+    → in-dom-†′ (`proj₁ M)
+
+  in-dom-†′-`proj₂ : ∀ {Γ A B} {M : Γ ⊢ A `× B}
+    → in-dom-†′ M
+    → in-dom-†′ (`proj₂ M)
+
+
+in-dom-†′? : ∀ {Γ A} (M : Γ ⊢ A) → Dec (in-dom-†′ M)
+
+in-dom-†′? (` x) = yes (in-dom-†′-` x)
+
+in-dom-†′? (ƛ M)
+  with in-dom-†′? M
+...  | yes M-∈-dom =
+       yes (in-dom-†′-ƛ M-∈-dom)
+...  | no  M-∉-dom =
+       no λ{ (in-dom-†′-ƛ M-∈-dom) → M-∉-dom M-∈-dom }
+
+in-dom-†′? (L · M)
+  with in-dom-†′? L | in-dom-†′? M
+...  | yes L-∈-dom  | yes M-∈-dom =
+       yes (L-∈-dom in-dom-†′-· M-∈-dom)
+...  | no  L-∉-dom  | _ =
+       no λ{ (L-∈-dom in-dom-†′-· M-∈-dom) → L-∉-dom L-∈-dom }
+...  | _            | no  M-∉-dom =
+       no λ{ (L-∈-dom in-dom-†′-· M-∈-dom) → M-∉-dom M-∈-dom }
+
+in-dom-†′? `⟨ L , M ⟩
+  with in-dom-†′? L | in-dom-†′? M
+...  | yes L-∈-dom  | yes M-∈-dom =
+       yes in-dom-†′-`⟨ L-∈-dom , M-∈-dom ⟩
+...  | no  L-∉-dom  | _ =
+       no λ{ in-dom-†′-`⟨ L-∈-dom , M-∈-dom ⟩ → L-∉-dom L-∈-dom }
+...  | _            | no  M-∉-dom =
+       no λ{ in-dom-†′-`⟨ L-∈-dom , M-∈-dom ⟩ → M-∉-dom M-∈-dom }
+
+in-dom-†′? (`proj₁ M)
+  with in-dom-†′? M
+...  | yes M-∈-dom =
+       yes (in-dom-†′-`proj₁ M-∈-dom)
+...  | no  M-∉-dom =
+       no λ{ (in-dom-†′-`proj₁ M-∈-dom) → M-∉-dom M-∈-dom }
+
+in-dom-†′? (`proj₂ M)
+  with in-dom-†′? M
+...  | yes M-∈-dom =
+       yes (in-dom-†′-`proj₂ M-∈-dom)
+...  | no  M-∉-dom =
+       no λ{ (in-dom-†′-`proj₂ M-∈-dom) → M-∉-dom M-∈-dom }
+
+in-dom-†′? `zero = no λ ()
+in-dom-†′? (`suc _) = no λ ()
+in-dom-†′? (case _ _ _) = no λ ()
+in-dom-†′? (μ _) = no λ ()
+in-dom-†′? (con _) = no λ ()
+in-dom-†′? (_ `* _) = no λ ()
+in-dom-†′? (`let _ _) = no λ ()
+in-dom-†′? (case× _ _) = no λ ()
+in-dom-†′? (`inj₁ _) = no λ ()
+in-dom-†′? (`inj₂ _) = no λ ()
+in-dom-†′? (case⊎ _ _ _) = no λ ()
+in-dom-†′? `tt = no λ ()
+in-dom-†′? (case⊤ _ _) = no λ ()
+in-dom-†′? (case⊥ _) = no λ ()
+in-dom-†′? `[] = no λ ()
+in-dom-†′? (_ `∷ _) = no λ ()
+in-dom-†′? (caseL _ _ _) = no λ ()
+
+
+_†′ : ∀ {Γ A}
+  → (M : Γ ⊢ A)
+  → {M-in-dom†′ : True (in-dom-†′? M)}
+  → Γ ⊢ A
+
+(` x) †′ = ` x
+
+((ƛ M) †′) {ƛ-∈-dom}
+  with toWitness ƛ-∈-dom
+...  | in-dom-†′-ƛ M-∈-dom =
+       ƛ ((M †′) {fromWitness M-∈-dom})
+
+((L · M) †′) {·-∈-dom}
+  with toWitness ·-∈-dom
+...  | L-∈-dom in-dom-†′-· M-∈-dom =
+       ((L †′) {fromWitness L-∈-dom}) · ((M †′) {fromWitness M-∈-dom})
+
+(`⟨ L , M ⟩ †′) {`⟨,⟩-∈-dom}
+  with toWitness `⟨,⟩-∈-dom
+...  | in-dom-†′-`⟨ L-∈-dom , M-∈-dom ⟩ =
+       `⟨ (L †′) {fromWitness L-∈-dom} , (M †′) {fromWitness M-∈-dom} ⟩
+
+(`proj₁ M †′) {`proj₁-∈-dom}
+  with toWitness `proj₁-∈-dom
+...  | in-dom-†′-`proj₁ M-∈-dom =
+       case× ((M †′) {fromWitness M-∈-dom}) (# 1)
+
+(`proj₂ M †′) {`proj₂-∈-dom}
+  with toWitness `proj₂-∈-dom
+...  | in-dom-†′-`proj₂ M-∈-dom =
+       case× ((M †′) {fromWitness M-∈-dom}) (# 0)
+
+
+~†′ : ∀ {Γ A}
+  → (M : Γ ⊢ A)
+  → {M-∈-dom-†′ : True (in-dom-†′? M)}
+  → M ~′ ((M †′) {M-∈-dom-†′})
+
+~†′ (` x) = ~′`
+
+~†′ (ƛ M) {ƛ-∈-dom}
+  with toWitness ƛ-∈-dom
+...  | in-dom-†′-ƛ M-∈-dom =
+       ~′ƛ (~†′ M)
+
+~†′ (L · M) {·-∈-dom}
+  with toWitness ·-∈-dom
+...  | L-∈-dom in-dom-†′-· M-∈-dom =
+       (~†′ L) ~′· (~†′ M)
+
+~†′ `⟨ L , M ⟩ {`⟨,⟩-∈-dom}
+  with toWitness `⟨,⟩-∈-dom
+...  | in-dom-†′-`⟨ L-∈-dom , M-∈-dom ⟩ =
+       ~′`⟨ ~†′ L , ~†′ M ⟩
+
+~†′ (`proj₁ M) {`proj₁-∈-dom}
+  with toWitness `proj₁-∈-dom
+...  | in-dom-†′-`proj₁ M-∈-dom =
+       ~′`proj₁ (~†′ M)
+
+~†′ (`proj₂ M) {`proj₂-∈-dom}
+  with toWitness `proj₂-∈-dom
+...  | in-dom-†′-`proj₂ M-∈-dom =
+       ~′`proj₂ (~†′ M)
+
+
+~′⇒†≡ : ∀ {Γ A} {M N : Γ ⊢ A} {M-∈-dom-†′ : True (in-dom-†′? M)}
+  → M ~′ N
+  → (M †′) {M-∈-dom-†′} ≡ N
+
+~′⇒†≡ ~′` = refl
+
+~′⇒†≡ {M-∈-dom-†′ = ƛ-∈-dom} (~′ƛ ~M)
+  with toWitness ƛ-∈-dom
+...  | in-dom-†′-ƛ M-∈-dom =
+       Eq.cong ƛ_ (~′⇒†≡ ~M)
+
+~′⇒†≡ {M-∈-dom-†′ = ·-∈-dom} (~L ~′· ~M)
+  with toWitness ·-∈-dom
+...  | L-∈-dom in-dom-†′-· M-∈-dom =
+       Eq.cong₂ _·_ (~′⇒†≡ ~L) (~′⇒†≡ ~M)
+
+~′⇒†≡ {M-∈-dom-†′ = `⟨,⟩-∈-dom} ~′`⟨ ~L , ~M ⟩
+  with toWitness `⟨,⟩-∈-dom
+...  | in-dom-†′-`⟨ L-∈-dom , M-∈-dom ⟩ =
+       Eq.cong₂ `⟨_,_⟩ (~′⇒†≡ ~L) (~′⇒†≡ ~M)
+
+~′⇒†≡ {M-∈-dom-†′ = `proj₁-∈-dom} (~′`proj₁ ~M)
+  with toWitness `proj₁-∈-dom
+...  | in-dom-†′-`proj₁ M-∈-dom =
+       Eq.cong₂ case× (~′⇒†≡ ~M) refl
+
+~′⇒†≡ {M-∈-dom-†′ = `proj₂-∈-dom} (~′`proj₂ ~M)
+  with toWitness `proj₂-∈-dom
+...  | in-dom-†′-`proj₂ M-∈-dom =
+       Eq.cong₂ case× (~′⇒†≡ ~M) refl
+
+
+~′val : ∀ {Γ A} {M M†′ : Γ ⊢ A}
+  → M ~′ M†′
+  → Value M
+  → Value M†′
+
+~′val (~′ƛ M~′) V-ƛ = V-ƛ
+~′val ~′`⟨ L~′ , M~′ ⟩ V-⟨ V-L , V-M ⟩ =
+  V-⟨ ~′val L~′ V-L , ~′val M~′ V-M ⟩
+
+
+~′val⁻¹ : ∀ {Γ A} {M M†′ : Γ ⊢ A}
+  → M ~′ M†′
+  → Value M†′
+  → Value M
+
+~′val⁻¹ (~′ƛ M†′~′) V-ƛ = V-ƛ
+~′val⁻¹ ~′`⟨ L†′~′ , M†′~′ ⟩ V-⟨ V-L†′ , V-M†′ ⟩ =
+  V-⟨ ~′val⁻¹ L†′~′ V-L†′ , ~′val⁻¹ M†′~′ V-M†′ ⟩
+
+
+~′rename : ∀ {Γ Δ}
+  → (ρ : ∀ {A} → Γ ∋ A → Δ ∋ A)
+  → (∀ {A} {M M†′ : Γ ⊢ A} → M ~′ M†′ → rename ρ M ~′ rename ρ M†′)
+
+~′rename ρ ~′`              = ~′`
+~′rename ρ (~′ƛ M~′)        = ~′ƛ ~′rename (ext ρ) M~′
+~′rename ρ (L~′ ~′· M~′)    = ~′rename ρ L~′ ~′· ~′rename ρ M~′
+~′rename ρ ~′`⟨ L~′ , M~′ ⟩ = ~′`⟨ ~′rename ρ L~′ , ~′rename ρ M~′ ⟩
+~′rename ρ (~′`proj₁ M~′)   = ~′`proj₁ (~′rename ρ M~′)
+~′rename ρ (~′`proj₂ M~′)   = ~′`proj₂ (~′rename ρ M~′)
+
+
+~′exts : ∀ {Γ Δ}
+  → {σ   : ∀ {A} → Γ ∋ A → Δ ⊢ A}
+  → {σ†′ : ∀ {A} → Γ ∋ A → Δ ⊢ A}
+  → (∀ {A} → (x : Γ ∋ A) → σ x ~′ σ†′ x)
+  → (∀ {A B} → (x : Γ , B ∋ A) → exts σ x ~′ exts σ†′ x)
+
+~′exts σ~′ Z     = ~′`
+~′exts σ~′ (S x) = ~′rename S_ (σ~′ x)
+
+
+~′subst : ∀ {Γ Δ}
+  → {σ   : ∀ {A} → Γ ∋ A → Δ ⊢ A}
+  → {σ†′ : ∀ {A} → Γ ∋ A → Δ ⊢ A}
+  → (∀ {A} → (x : Γ ∋ A) → σ x ~′ σ†′ x)
+  → (∀ {A} {M M†′ : Γ ⊢ A} → M ~′ M†′ → subst σ M ~′ subst σ†′ M†′)
+
+~′subst σ~′ (~′` {x = x})    = σ~′ x
+~′subst σ~′ (~′ƛ M~′)        = ~′ƛ (~′subst (~′exts σ~′) M~′)
+~′subst σ~′ (L~′ ~′· M~′)    = (~′subst σ~′ L~′) ~′· (~′subst σ~′ M~′)
+~′subst σ~′ ~′`⟨ L~′ , M~′ ⟩ = ~′`⟨ ~′subst σ~′ L~′ , ~′subst σ~′ M~′ ⟩
+~′subst σ~′ (~′`proj₁ M~′)   = ~′`proj₁ (~′subst σ~′ M~′)
+~′subst σ~′ (~′`proj₂ M~′)   = ~′`proj₂ (~′subst σ~′ M~′)
+
+
+~′sub : ∀ {Γ A B} {N N†′ : Γ , B ⊢ A} {M M†′ : Γ ⊢ B}
+  → N ~′ N†′
+  → M ~′ M†′
+  → (N [ M ]) ~′ (N†′ [ M†′ ])
+
+~′sub {Γ} {A} {B} N~′ M~′ = ~′subst {Γ , B} {Γ} σ~′ {A} N~′
+  where
+  σ~′ : ∀ {A} → (x : Γ , B ∋ A) → _ ~′ _
+  σ~′ Z     = M~′
+  σ~′ (S _) = ~′`
+
+
+~′sub² : ∀ {Γ A B C} {N N†′ : Γ , B , C ⊢ A} {L L†′ : Γ ⊢ B} {M M†′ : Γ ⊢ C}
+  → N ~′ N†′
+  → L ~′ L†′
+  → M ~′ M†′
+  → (N [ L ][ M ]) ~′ (N†′ [ L†′ ][ M†′ ])
+
+~′sub² {Γ} {A} {B} {C} N~′ M~′ L~′ = ~′subst {Γ , B , C} {Γ} σ~′ {A} N~′
+  where
+  σ~′ : ∀ {A} → (x : Γ , B , C ∋ A) → _ ~′ _
+  σ~′ Z         = L~′
+  σ~′ (S Z)     = M~′
+  σ~′ (S (S _)) = ~′`
+
+
+data Leg′ {Γ A} (M†′ N : Γ ⊢ A) : Set where
+
+  leg′ : ∀ {N†′ : Γ ⊢ A}
+    → N ~′ N†′
+    → M†′ —→ N†′
+    → Leg′ M†′ N
+
+
+sim′ : ∀ {Γ A} {M M†′ N : Γ ⊢ A}
+  → M ~′ M†′
+  → M —→ N
+  → Leg′ M†′ N
+
+sim′ (L~′ ~′· M~′) (ξ-·₁ L—→)
+  with sim′ L~′ L—→
+...  | leg′ L′~′ L†′—→ =
+       leg′ (L′~′ ~′· M~′) (ξ-·₁ L†′—→)
+
+sim′ (L~′ ~′· M~′) (ξ-·₂ V-L M—→)
+  with sim′ M~′ M—→
+...  | leg′ M′~′ M†′—→ =
+       leg′ (L~′ ~′· M′~′) (ξ-·₂ (~′val L~′ V-L) M†′—→)
+
+sim′ ((~′ƛ L~′) ~′· M~′) (β-ƛ V-M) =
+  leg′ (~′sub L~′ M~′) (β-ƛ (~′val M~′ V-M))
+
+sim′ ~′`⟨ L~′ , M~′ ⟩ (ξ-⟨,⟩₁ L—→)
+  with sim′ L~′ L—→
+...  | leg′ L′~′ L†′—→ =
+       leg′ ~′`⟨ L′~′ , M~′ ⟩ (ξ-⟨,⟩₁ L†′—→)
+
+sim′ ~′`⟨ L~′ , M~′ ⟩ (ξ-⟨,⟩₂ V-L M—→)
+  with sim′ M~′ M—→
+...  | leg′ M′~′ M†′—→ =
+       leg′ ~′`⟨ L~′ , M′~′ ⟩ (ξ-⟨,⟩₂ (~′val L~′ V-L) M†′—→)
+
+sim′ (~′`proj₁ M~′) (ξ-proj₁ M—→)
+  with sim′ M~′ M—→
+...  | leg′ M′~′ M†′—→ =
+       leg′ (~′`proj₁ M′~′) (ξ-case× M†′—→)
+
+sim′ (~′`proj₁ ~′`⟨ L~′ , M~′ ⟩) (β-proj₁ V-L V-M) =
+  leg′ L~′ (β-case× (~′val L~′ V-L) (~′val M~′ V-M))
+
+sim′ (~′`proj₂ M~′) (ξ-proj₂ M—→)
+  with sim′ M~′ M—→
+...  | leg′ M′~′ M†′—→ =
+       leg′ (~′`proj₂ M′~′) (ξ-case× M†′—→)
+
+sim′ (~′`proj₂ ~′`⟨ L~′ , M~′ ⟩) (β-proj₂ V-L V-M) =
+  leg′ M~′ (β-case× (~′val L~′ V-L) (~′val M~′ V-M))
+
+
+data Leg′⁻¹ {Γ A} (M N† : Γ ⊢ A) : Set where
+
+  leg′⁻¹ : ∀ {N : Γ ⊢ A}
+    → N ~′ N†
+    → M —↠ N
+    → Leg′⁻¹ M N†
+
+
+—↠-distr : ∀ {Γ A B}
+  → (f : Γ ⊢ A → Γ ⊢ B)
+  → ({M M′ : Γ ⊢ A} → M —→ M′ → f M —→ f M′)
+  → ({M M′ : Γ ⊢ A} → M —↠ M′ → f M —↠ f M′)
+—↠-distr f embed (_ ∎) = _ ∎
+—↠-distr f embed (_ —→⟨ M—→N ⟩ N—↠M′) =
+  _ —→⟨ embed M—→N ⟩ —↠-distr f embed N—↠M′
+
+
+sim′⁻¹ : ∀ {Γ A} {M M†′ N†′ : Γ ⊢ A}
+  → M ~′ M†′
+  → M†′ —→ N†′
+  → Leg′⁻¹ M N†′
+
+sim′⁻¹ (L†′~′ ~′· M†′~′) (ξ-·₁ L†′—→)
+  with sim′⁻¹ L†′~′ L†′—→
+...  | leg′⁻¹ L~′ L—↠ =
+       leg′⁻¹
+         (L~′ ~′· M†′~′)
+         (—↠-distr (_· _) ξ-·₁ L—↠)
+
+sim′⁻¹ (L~′ ~′· M~′) (ξ-·₂ V-L†′ M†′—→)
+  with sim′⁻¹ M~′ M†′—→
+...  | leg′⁻¹ M′~′ M—↠ =
+       leg′⁻¹
+         (L~′ ~′· M′~′)
+         (—↠-distr (_ ·_) (ξ-·₂ (~′val⁻¹ L~′ V-L†′)) M—↠)
+
+sim′⁻¹ ((~′ƛ L~′) ~′· M~′) (β-ƛ V-M†′) =
+  leg′⁻¹
+    (~′sub L~′ M~′)
+    (_ —→⟨ β-ƛ (~′val⁻¹ M~′ V-M†′) ⟩ _ ∎)
+
+sim′⁻¹ ~′`⟨ L~′ , M~′ ⟩ (ξ-⟨,⟩₁ L†′—→)
+  with sim′⁻¹ L~′ L†′—→
+...  | leg′⁻¹ L′~′ L—↠ =
+       leg′⁻¹
+         ~′`⟨ L′~′ , M~′ ⟩
+         (—↠-distr `⟨_, _ ⟩ ξ-⟨,⟩₁ L—↠)
+
+sim′⁻¹ ~′`⟨ L~′ , M~′ ⟩ (ξ-⟨,⟩₂ V-L†′ M†′—→)
+  with sim′⁻¹ M~′ M†′—→
+...  | leg′⁻¹ M′~′ M—↠ =
+       leg′⁻¹
+         ~′`⟨ L~′ , M′~′ ⟩
+         (—↠-distr `⟨ _ ,_⟩ (ξ-⟨,⟩₂ (~′val⁻¹ L~′ V-L†′)) M—↠)
+
+sim′⁻¹ (~′`proj₁ M~′) (ξ-case× M†′—→)
+  with sim′⁻¹ M~′ M†′—→
+...  | leg′⁻¹ M′~′ M—↠ =
+       leg′⁻¹
+         (~′`proj₁ M′~′)
+         (—↠-distr `proj₁ ξ-proj₁ M—↠)
+
+sim′⁻¹ (~′`proj₁ ~′`⟨ L~′ , M~′ ⟩) (β-case× V-L V-M) =
+  leg′⁻¹
+    (~′sub² ~′` L~′ M~′)
+    (_ —→⟨ β-proj₁ (~′val⁻¹ L~′ V-L) (~′val⁻¹ M~′ V-M) ⟩ _ ∎)
+
+sim′⁻¹ (~′`proj₂ M~′) (ξ-case× M†′—→)
+  with sim′⁻¹ M~′ M†′—→
+...  | leg′⁻¹ M′~′ M—↠ =
+       leg′⁻¹
+         (~′`proj₂ M′~′)
+         (—↠-distr `proj₂ ξ-proj₂ M—↠)
+
+sim′⁻¹ (~′`proj₂ ~′`⟨ L~′ , M~′ ⟩) (β-case× V-L V-M) =
+  leg′⁻¹
+    (~′sub² ~′` L~′ M~′)
+    (_ —→⟨ β-proj₂ (~′val⁻¹ L~′ V-L) (~′val⁻¹ M~′ V-M) ⟩ _ ∎)
 ```
 
 ## Unicode

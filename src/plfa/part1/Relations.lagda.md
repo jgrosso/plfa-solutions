@@ -243,13 +243,13 @@ partial order but not a total order.
 Give an example of a preorder that is not a partial order.
 
 ```agda
--- Your code goes here
+-- α-equivalence
 ```
 
 Give an example of a partial order that is not a total order.
 
 ```agda
--- Your code goes here
+-- Equality
 ```
 
 ## Reflexivity
@@ -362,11 +362,12 @@ The above proof omits cases where one argument is `z≤n` and one
 argument is `s≤s`.  Why is it ok to omit them?
 
 ```agda
--- Your code goes here
+-- `z≤n` implies `m ≡ 0` or `n ≡ 0`, whereas `s≤s` implies `m ≡ suc m′` and `n ≡ suc n′`.
+-- Thus, we have a contradiction.
 ```
 
 
-## Total
+## cotal
 
 The fourth property to prove about comparison is that it is total:
 for any naturals `m` and `n` either `m ≤ n` or `n ≤ m`, or both if
@@ -378,7 +379,7 @@ data Total (m n : ℕ) : Set where
 
   forward :
       m ≤ n
-      ---------
+      --------c
     → Total m n
 
   flipped :
@@ -552,7 +553,18 @@ transitivity proves `m + p ≤ n + q`, as was to be shown.
 Show that multiplication is monotonic with regard to inequality.
 
 ```agda
--- Your code goes here
+open import Data.Nat using (_*_)
+open import plfa.part1.Induction using (*-zeroʳ)
+
+*-mono-≤ : ∀ {m n p q : ℕ}
+  → m ≤ n
+  → p ≤ q
+  → m * p ≤ n * q
+*-mono-≤ z≤n p≤q = z≤n
+*-mono-≤ (s≤s z≤n) z≤n = z≤n
+*-mono-≤ {m} (s≤s (s≤s m≤n)) z≤n  rewrite *-zeroʳ m = z≤n
+{-# CATCHALL #-}
+*-mono-≤ (s≤s m≤n) (s≤s p≤q) = s≤s (+-mono-≤ _ _ _ _ p≤q (*-mono-≤ m≤n (s≤s p≤q)))
 ```
 
 
@@ -600,7 +612,12 @@ Show that strict inequality is transitive. Use a direct proof. (A later
 exercise exploits the relation between < and ≤.)
 
 ```agda
--- Your code goes here
+<-trans : ∀ {m n p : ℕ}
+  → m < n
+  → n < p
+  → m < p
+<-trans z<s (s<s _) = z<s
+<-trans (s<s m<p) (s<s n<p) = s<s (<-trans m<p n<p)
 ```
 
 #### Exercise `trichotomy` (practice) {#trichotomy}
@@ -618,7 +635,23 @@ similar to that used for totality.
 [negation](/Negation/).)
 
 ```agda
--- Your code goes here
+infix 4 _>_
+_>_ : ℕ → ℕ → Set
+m > n = n < m
+
+data Trichotomy (m n : ℕ) : Set where
+  tri-< : m < n → Trichotomy m n
+  tri-≡ : m ≡ n → Trichotomy m n
+  tri-> : m > n → Trichotomy m n
+
+trichotomy : ∀ (m n : ℕ) → Trichotomy m n
+trichotomy zero zero = tri-≡ refl
+trichotomy zero (suc n) = tri-< z<s
+trichotomy (suc m) zero = tri-> z<s
+trichotomy (suc m) (suc n) with trichotomy m n
+...                           | tri-< m<n = tri-< (s<s m<n)
+...                           | tri-≡ refl = tri-≡ refl
+...                           | tri-> m>n = tri-> (s<s m>n)
 ```
 
 #### Exercise `+-mono-<` (practice) {#plus-mono-less}
@@ -627,7 +660,27 @@ Show that addition is monotonic with respect to strict inequality.
 As with inequality, some additional definitions may be required.
 
 ```agda
--- Your code goes here
++-monoʳ-< : ∀ (n : ℕ) → ∀ {p q : ℕ}
+  → p < q
+  → n + p < n + q
++-monoʳ-< zero p<q = p<q
++-monoʳ-< (suc n) p<q = s<s (+-monoʳ-< n p<q)
+
+open import plfa.part1.Induction using (+-swap)
+
++-mono-< : ∀ {m n p q : ℕ}
+  → m < n
+  → p < q
+  → m + p < n + q
++-mono-< z<s z<s = z<s
++-mono-< (z<s {n}) (s<s {p} {q} p<q)
+  rewrite +-comm 1 q
+        | +-swap n q 1
+        | +-comm n 1
+        | Eq.sym (+-identityʳ q)
+        | cong (_+ suc n) (+-identityʳ q)
+  = s<s (<-trans p<q (+-monoʳ-< q z<s))
++-mono-< (s<s m<n) p<q = s<s (+-mono-< m<n p<q)
 ```
 
 #### Exercise `≤-iff-<` (recommended) {#leq-iff-less}
@@ -635,7 +688,17 @@ As with inequality, some additional definitions may be required.
 Show that `suc m ≤ n` implies `m < n`, and conversely.
 
 ```agda
--- Your code goes here
+≤-if-< : ∀ {m n : ℕ}
+  → m < n
+  → suc m ≤ n
+≤-if-< z<s = s≤s z≤n
+≤-if-< (s<s m<n) = s≤s (≤-if-< m<n)
+
+<-if-≤ : ∀ {m n : ℕ}
+  → suc m ≤ n
+  → m < n
+<-if-≤ {zero} (s≤s _) = z<s
+<-if-≤ {suc m} (s≤s suc-m≤n) = s<s (<-if-≤ suc-m≤n)
 ```
 
 #### Exercise `<-trans-revisited` (practice) {#less-trans-revisited}
@@ -645,7 +708,16 @@ using the relation between strict inequality and inequality and
 the fact that inequality is transitive.
 
 ```agda
--- Your code goes here
+≤-suc : ∀ (n : ℕ) → n ≤ suc n
+≤-suc zero = z≤n
+≤-suc (suc n) = s≤s (≤-suc n)
+
+<-trans′ : ∀ {m n p : ℕ}
+  → m < n
+  → n < p
+  → m < p
+<-trans′ {m} {n} {p} m<n n<p =
+  <-if-≤ (≤-trans (≤-if-< m<n) (≤-trans (≤-suc n) (≤-if-< n<p)))
 ```
 
 
@@ -752,7 +824,14 @@ successor of the sum of two even numbers, which is even.
 Show that the sum of two odd numbers is even.
 
 ```agda
--- Your code goes here
+open import plfa.part1.Induction using (+-suc)
+
+o+o≡e : ∀ {m n : ℕ}
+  → odd m
+  → odd n
+  → even (m + n)
+o+o≡e (suc {m} even-m) (suc {n} even-n) rewrite +-suc m n =
+  suc (suc (e+e≡e even-m even-n))
 ```
 
 #### Exercise `Bin-predicates` (stretch) {#Bin-predicates}
@@ -805,7 +884,120 @@ properties of `One`. Also, you may need to prove that
 if `One b` then `1` is less or equal to the result of `from b`.)
 
 ```agda
--- Your code goes here
+open import plfa.part1.Induction using (Bin; ⟨⟩; _O; _I; inc; from; to; +-assoc)
+
+data One : Bin → Set where
+  one-⟨⟩I : One (⟨⟩ I)
+
+  one-bO : ∀ {b : Bin}
+    → One b
+    → One (b O)
+
+  one-bI : ∀ {b : Bin}
+    → One b
+    → One (b I)
+
+data Can : Bin → Set where
+  can-zero : Can (⟨⟩ O)
+
+  can-positive : ∀ {b : Bin}
+    → One b
+    → Can b
+
+inc-preserves-One : ∀ {b : Bin}
+  → One b
+  → One (inc b)
+inc-preserves-One one-⟨⟩I = one-bO one-⟨⟩I
+inc-preserves-One (one-bO One-b) = one-bI One-b
+inc-preserves-One (one-bI One-b) = one-bO (inc-preserves-One One-b)
+
+inc-preserves-Can : ∀ {b : Bin}
+  → Can b
+  → Can (inc b)
+inc-preserves-Can can-zero = can-positive one-⟨⟩I
+inc-preserves-Can (can-positive one-b) =
+  can-positive (inc-preserves-One one-b)
+
+One-to : ∀ (n : ℕ) → One (inc (to n))
+One-to zero = one-⟨⟩I
+One-to (suc n) = inc-preserves-One (One-to n)
+
+Can-to : ∀ (n : ℕ) → Can (to n)
+Can-to zero = can-zero
+Can-to (suc n) = can-positive (One-to n)
+
+≤-+ : ∀ {m n : ℕ} → (p : ℕ)
+  → m ≤ n
+  → m ≤ n + p
+≤-+ p z≤n = z≤n
+≤-+ p (s≤s m≤n) = s≤s (≤-+ p m≤n)
+
+One-implies-1-≤-from : ∀ {b : Bin}
+  → One b
+  → 1 ≤ from b
+One-implies-1-≤-from one-⟨⟩I = s≤s z≤n
+One-implies-1-≤-from (one-bO {b} one-b) =
+  ≤-trans
+    (One-implies-1-≤-from one-b)
+    (≤-+ (from b + 0) ≤-refl)
+One-implies-1-≤-from (one-bI one-b) = s≤s z≤n
+
+import Relation.Binary.PropositionalEquality as Eq
+open Eq.≡-Reasoning
+
+to-2* : ∀ {n : ℕ}
+  → 1 ≤ n
+  → to (n + n) ≡ (to n) O
+to-2* {0} ()
+to-2* {1} _ = refl
+to-2* {suc (suc n)} _ =
+  begin
+    to (suc (suc n) + suc (suc n))
+  ≡⟨⟩
+    to (suc (suc n + suc (suc n)))
+  ≡⟨⟩
+    inc (to (suc n + suc (suc n)))
+  ≡⟨⟩
+    inc (to (suc (n + suc (suc n))))
+  ≡⟨⟩
+    inc (inc (to (n + (suc (suc n)))))
+  ≡⟨ cong (λ · → inc (inc (to ·))) (+-suc n (suc n)) ⟩
+    inc (inc (to (suc n + suc n)))
+  ≡⟨ cong (λ · → inc (inc ·)) (to-2* (s≤s (z≤n {n}))) ⟩
+    inc (inc ((to (suc n)) O))
+  ≡⟨⟩
+    inc (inc ((inc (to n)) O))
+  ≡⟨⟩
+    inc ((inc (to n)) I)
+  ≡⟨⟩
+    (inc (inc (to n))) O
+  ≡⟨⟩
+    (inc (to (suc n))) O
+  ≡⟨⟩
+    (to (suc (suc n))) O
+  ∎
+
+to-from : ∀ {b : Bin}
+  → Can b
+  → to (from b) ≡ b
+to-from can-zero = refl
+to-from (can-positive (one-⟨⟩I)) = refl
+to-from (can-positive (one-bO {b} One-b)) rewrite +-identityʳ (from b) =
+  begin
+    to (from b + from b)
+  ≡⟨ to-2* {from b} (One-implies-1-≤-from One-b) ⟩
+    ((to (from b)) O)
+  ≡⟨ cong (_O) (to-from (can-positive One-b)) ⟩
+    b O
+  ∎
+to-from (can-positive (one-bI {b} One-b)) rewrite +-identityʳ (from b) =
+  begin
+    inc (to (from b + from b))
+  ≡⟨ cong inc (to-2* (One-implies-1-≤-from One-b)) ⟩
+    inc ((to (from b)) O)
+  ≡⟨ cong (λ · → inc (· O)) (to-from (can-positive One-b)) ⟩
+    b I
+  ∎
 ```
 
 ## Standard library
